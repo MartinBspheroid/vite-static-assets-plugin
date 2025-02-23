@@ -1,4 +1,4 @@
-# Vite Plugin: Static Assets
+# Vite Static Assets Plugin
 
 A Vite plugin that automatically scans a specified directory for static assets, generates a TypeScript module with a type-safe union of available asset paths, and provides a helper function to get the URL for an asset. It also validates asset references in your code during build time, ensuring that you never reference a non-existent asset.
 
