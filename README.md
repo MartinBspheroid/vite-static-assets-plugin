@@ -16,9 +16,9 @@ A Vite plugin that automatically scans a specified directory for static assets, 
 Install the plugin using npm or yarn:
 
 ```bash
-npm install vite-plugin-static-assets
+npm install vite-static-assets-plugin
 # or
-yarn add vite-plugin-static-assets
+yarn add vite-static-assets-plugin
 ```
 
 Generated Module
@@ -38,7 +38,7 @@ The plugin automatically generates a TypeScript file (by default at src/static-a
 add this to your `vite.config.ts/js`
 ```typescript
 import { defineConfig } from 'vite';
-import staticAssetsPlugin from 'vite-plugin-static-assets';
+import staticAssetsPlugin from 'vite-static-assets-plugin';
 
 export default defineConfig({
   plugins: [
