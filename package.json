@@ -13,7 +13,7 @@
   },
   "repository": {
     "type": "git",
-    "url": "https://github.com/your-username/my-vite-plugin.git"
+    "url": "https://github.com/MartinBspheroid/vite-static-assets-plugin.git"
   },
   "keywords": ["vite", "plugin"],
   "author": "Martin Blasko",
