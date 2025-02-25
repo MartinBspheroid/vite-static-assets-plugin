@@ -2,6 +2,9 @@
 
 A Vite plugin that automatically scans a specified directory for static assets, generates a TypeScript module with a type-safe union of available asset paths, and provides a helper function to get the URL for an asset. It also validates asset references in your code during build time, ensuring that you never reference a non-existent asset.
 
+<img width="1048" alt="Screenshot 2025-02-25 at 12 56 29" src="https://github.com/user-attachments/assets/2750833a-d816-46c8-80c6-c636fdd3dd84" />
+
+
 ## Features
 
 - **Automatic Asset Scanning:** Recursively scans a directory (default: `public`) for static assets.
@@ -63,6 +66,7 @@ const logoUrl = staticAssets('logo.svg');
 
 This setup provides compile-time type safety—only valid asset paths (as scanned during build time) can be used—and runtime verification to ensure the asset exists.
 
+
 How It Works
 ------------
 
@@ -95,6 +99,9 @@ Error Handling
 --------------
 
 If your code references an asset using staticAssets('asset-path') that does not exist in the scanned directory, the plugin will throw an error during the build or serve phase. This error message will include the path of the missing asset, the file where it was referenced, and guidance to correct the issue.
+
+<img width="1048" alt="Screenshot 2025-02-25 at 12 56 50" src="https://github.com/user-attachments/assets/aad8cd9e-b5db-46b8-9ef9-73b031795482" />
+
 
 License
 -------
