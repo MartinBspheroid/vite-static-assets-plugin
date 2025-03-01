@@ -2,7 +2,7 @@
   "name": "vite-static-assets-plugin",
   "type": "module",
   "version": "1.0.4",
-  "description": "A Vite plugin to do something awesome",
+  "description": "A Vite plugin to handle your assets with a type-safe way & awesome DX",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
