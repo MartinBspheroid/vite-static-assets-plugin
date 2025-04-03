@@ -1,7 +1,7 @@
 {
   "name": "vite-static-assets-plugin",
   "type": "module",
-  "version": "1.0.6",
+  "version": "1.0.7",
   "description": "Typesafe static assets with Vite",
   "main": "dist/index.js",
   "module": "dist/index.js",
