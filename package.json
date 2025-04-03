@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc",
     "test": "echo 'No tests yet' && exit 0",
-    "prepare": "npm run build",
+    "prepare": "npm run typecheck && npm run build",
     "typecheck": "tsc --noEmit"
   },
   "repository": {
