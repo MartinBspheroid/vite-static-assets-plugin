@@ -1,7 +1,7 @@
 {
   "name": "vite-static-assets-plugin",
   "type": "module",
-  "version": "1.0.7",
+  "version": "1.0.8",
   "description": "Typesafe static assets with Vite",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -10,7 +10,8 @@
     "build": "tsc",
     "test": "echo 'No tests yet' && exit 0",
     "prepare": "husky",
-    "typecheck": "tsc --noEmit"
+    "typecheck": "tsc --noEmit",
+    "release": "bumpp package.json packages/*/package.json --commit --push --tag"
   },
   "repository": {
     "type": "git",
