@@ -1,2 +1,3 @@
 bun test
 bun bumpp patch
+echo "🚀 Committing changes..."
