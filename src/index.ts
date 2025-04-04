@@ -41,7 +41,7 @@ function getAllFiles(dir: string, baseDir: string, ignorePatterns: string[] = []
   return files;
 }
 
-function generateTypeScriptCode(files: string[], directory: string): string {
+function generateTypeScriptCode(files: string[], directory: string, basePath: string = '/'): string {
   const fileList = files.length > 0 
     ? files.map(file => `  '${file}'`).join(' |\n')
     : '  never';  // Handle case when no files are found
@@ -54,6 +54,7 @@ ${fileList};
 const assets = new Set<string>([
 ${files.map(file => `  '${file}'`).join(',\n')}
 ]);
+const BASE_PATH = ${JSON.stringify(basePath)};
 /**
  * 
  * @param path path to the asset 
@@ -73,7 +74,7 @@ export function staticAssets(path: StaticAssetPath): string {
   if (!assets.has(path)) {
     throw new Error(\`Static asset "\${path}" does not exist in ${directory} directory\`);
   }
-  return '/' + path;
+  return BASE_PATH + path;
 }
 `;
 }
@@ -90,9 +91,15 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
   
   let watcher: fs.FSWatcher | null = null;
   let currentFiles: Set<string> = new Set();
+  let basePath = '/'; // Default to root
   
   return {
     name: 'vite-plugin-static-assets',
+    
+    configResolved(resolvedConfig) {
+      // Get the base path from Vite's config
+      basePath = resolvedConfig.base || '/';
+    },
     
     buildStart() {
       const fullDir = path.resolve(directory);
@@ -105,7 +112,7 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
       // Generate initial file
       const files = getAllFiles(fullDir, fullDir, ignorePatterns);
       currentFiles = new Set(files);
-      const code = generateTypeScriptCode(files, directory);
+      const code = generateTypeScriptCode(files, directory, basePath);
       
       // Ensure output directory exists
       const outputDir = path.dirname(outputFile);
@@ -120,7 +127,7 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
         watcher = fs.watch(fullDir, { recursive: true }, () => {
           const updatedFiles = getAllFiles(fullDir, fullDir, ignorePatterns);
           currentFiles = new Set(updatedFiles);
-          const updatedCode = generateTypeScriptCode(updatedFiles, directory);
+          const updatedCode = generateTypeScriptCode(updatedFiles, directory, basePath);
           fs.writeFileSync(outputFile, updatedCode);
         });
       }
