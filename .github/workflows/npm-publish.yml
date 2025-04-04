@@ -2,9 +2,6 @@ name: Publish Package
 
 on:
   push:
-    # Trigger on pushes to the main branch and on tags matching semantic versioning (e.g., v1.0.0)
-    branches:
-      - main
     tags:
       - 'v*.*.*'
 
