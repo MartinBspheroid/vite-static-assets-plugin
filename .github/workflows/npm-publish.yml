@@ -14,29 +14,40 @@ jobs:
 
     steps:
       - name: Checkout Repository
-        uses: actions/checkout@v2
+        uses: actions/checkout@v4
 
       - name: Set up Node.js
         uses: actions/setup-node@v4
         with:
-          node-version: '14' # Adjust to your required version
+          node-version: '22' # Latest LTS version as of April 2025
           registry-url: 'https://registry.npmjs.org/'
 
-      - name: Cache node modules
+      - name: Cache dependencies
         uses: actions/cache@v4
         with:
-          path: ~/.npm
-          key: ${{ runner.os }}-node-${{ hashFiles('**/package-lock.json') }}
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ hashFiles('**/bun.lockb') }}
           restore-keys: |
-            ${{ runner.os }}-node-
+            ${{ runner.os }}-bun-
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
 
       - name: Install Dependencies
-        run: npm install
+        run: bun install
 
+      - name: Type Check
+        run: bun run typecheck
+        
+      - name: Build
+        run: bun run build
+        
       - name: Run Tests
-        run: npm test
+        run: bun test
 
       - name: Publish Package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: npm publish
+        run: bun run npm publish
