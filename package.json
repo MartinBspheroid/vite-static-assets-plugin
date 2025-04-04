@@ -9,7 +9,7 @@
   "scripts": {
     "build": "tsc",
     "test": "echo 'No tests yet' && exit 0",
-    "prepare": "npm run typecheck && npm run build",
+    "prepare": "husky",
     "typecheck": "tsc --noEmit"
   },
   "repository": {
@@ -37,6 +37,7 @@
   "devDependencies": {
     "@types/node": "^22.13.1",
     "bumpp": "^10.1.0",
+    "husky": "^9.1.7",
     "typescript": "^5.7.0",
     "vite": "^6.1.0"
   },
