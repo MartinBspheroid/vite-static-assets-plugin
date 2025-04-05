@@ -34,13 +34,17 @@ interface StaticAssetsPluginOptions {
   debounce?: number; 
 }
 
-function getAllFiles(dir: string, baseDir: string, ignorePatterns: string[] = []): string[] {
+/**
+ * Asynchronously scan a directory and return all file paths
+ */
+async function getAllFiles(dir: string, baseDir: string, ignorePatterns: string[] = []): Promise<string[]> {
   const files: string[] = [];
   
   try {
-    const items = fs.readdirSync(dir);
+    const items = await fs.promises.readdir(dir);
     
-    for (const item of items) {
+    // Process each item in parallel using Promise.all
+    const itemPromises = items.map(async (item) => {
       try {
         const fullPath = path.join(dir, item);
         const relativePath = normalizePath(path.relative(baseDir, fullPath));
@@ -51,27 +55,31 @@ function getAllFiles(dir: string, baseDir: string, ignorePatterns: string[] = []
         );
         
         if (shouldIgnore) {
-          continue;
+          return [];
         }
         
-        const stat = fs.statSync(fullPath);
+        const stat = await fs.promises.stat(fullPath);
         
         if (stat.isDirectory()) {
-          files.push(...getAllFiles(fullPath, baseDir, ignorePatterns));
+          // Recursively get files from subdirectory
+          const subFiles = await getAllFiles(fullPath, baseDir, ignorePatterns);
+          return subFiles;
         } else {
-          files.push(relativePath);
+          return [relativePath];
         }
       } catch (err) {
         console.warn(`${chalk.yellow('⚠')} Error processing file ${item}: ${err}`);
-        // Continue with other files instead of breaking completely
+        return []; // Continue with other files instead of breaking completely
       }
-    }
+    });
+    
+    // Wait for all item promises to resolve and flatten the results
+    const nestedResults = await Promise.all(itemPromises);
+    return nestedResults.flat();
   } catch (err) {
     console.error(`${chalk.red('✗')} Error reading directory ${dir}: ${err}`);
-    // Return empty array on directory read failure
+    return []; // Return empty array on directory read failure
   }
-  
-  return files;
 }
 
 function generateTypeScriptCode(files: string[], directory: string, basePath: string = '/'): string {
@@ -120,10 +128,29 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
   const outputFile = path.resolve(process.cwd(), options.outputFile || 'src/static-assets.ts');
   const ignorePatterns = options.ignore || ['.DS_Store'];
   
-  // ensure output file exists 
-  if (!fs.existsSync(outputFile)) {
-    fs.writeFileSync(outputFile, '');
-  }
+  // Create parent directories and ensure output file placeholder exists
+  const ensureOutputFile = async () => {
+    const outputDir = path.dirname(outputFile);
+    try {
+      // Check if directory exists, create if not
+      await fs.promises.mkdir(outputDir, { recursive: true });
+      
+      // Check if file exists, create empty file if not
+      try {
+        await fs.promises.access(outputFile);
+      } catch {
+        // File doesn't exist, create it
+        await fs.promises.writeFile(outputFile, '');
+      }
+    } catch (err) {
+      throw new Error(`Failed to create necessary directories or files: ${err}`);
+    }
+  };
+  
+  // Initialize during module evaluation
+  ensureOutputFile().catch(err => {
+    console.error(`${chalk.red('✗')} Initial setup error: ${err}`);
+  });
   
   let watcher: chokidar.FSWatcher | null = null;
   let currentFiles: Set<string> = new Set();
@@ -137,36 +164,26 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
       basePath = resolvedConfig.base || '/';
     },
     
-    buildStart() {
+    async buildStart() {
       try {
         const fullDir = path.resolve(directory);
         
         // Ensure directory exists
-        if (!fs.existsSync(fullDir)) {
+        try {
+          await fs.promises.access(fullDir);
+        } catch {
           throw new Error(`Directory "${directory}" does not exist`);
         }
         
         // Generate initial file
-        const files = getAllFiles(fullDir, fullDir, ignorePatterns);
+        const files = await getAllFiles(fullDir, fullDir, ignorePatterns);
         currentFiles = new Set(files);
         const code = generateTypeScriptCode(files, directory, basePath);
         
-        // Ensure output directory exists
-        const outputDir = path.dirname(outputFile);
-        try {
-          if (!fs.existsSync(outputDir)) {
-            fs.mkdirSync(outputDir, { recursive: true });
-          }
-        } catch (err) {
-          throw new Error(`Failed to create output directory "${outputDir}": ${err}`);
-        }
-        
-        try {
-          fs.writeFileSync(outputFile, code);
-          console.log(`${chalk.green('✓')} Generated static assets type definitions at ${chalk.blue(outputFile)}`);
-        } catch (err) {
-          throw new Error(`Failed to write output file "${outputFile}": ${err}`);
-        }
+        // Ensure output directory exists and write file
+        await ensureOutputFile();
+        await fs.promises.writeFile(outputFile, code);
+        console.log(`${chalk.green('✓')} Generated static assets type definitions at ${chalk.blue(outputFile)}`);
         
         // Setup watcher in dev mode
         if (process.env.NODE_ENV !== 'production' && !watcher) {
@@ -180,12 +197,12 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
             // Debounce function to avoid too many rebuilds
             let debounceTimer: NodeJS.Timeout | null = null;
 
-            const updateTypeScriptFile = (eventType : updateTypeScriptFileEvent) => {
+            const updateTypeScriptFile = async (eventType: updateTypeScriptFileEvent) => {
               try {
-                const updatedFiles = getAllFiles(fullDir, fullDir, ignorePatterns);
+                const updatedFiles = await getAllFiles(fullDir, fullDir, ignorePatterns);
                 currentFiles = new Set(updatedFiles);
                 const updatedCode = generateTypeScriptCode(updatedFiles, directory, basePath);
-                fs.writeFileSync(outputFile, updatedCode);
+                await fs.promises.writeFile(outputFile, updatedCode);
                 console.log(`${chalk.green('✓')} Updated static assets type definitions (${eventType}).`);
               } catch (err) {
                 console.error(`${chalk.red('✗')} Error updating static assets: ${err}`);
@@ -196,15 +213,15 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
             watcher
               .on('add', () => {
                 if (debounceTimer) clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(()=> updateTypeScriptFile("add"), options.debounce || 200);
+                debounceTimer = setTimeout(() => updateTypeScriptFile("add"), options.debounce || 200);
               })
               .on('unlink', () => {
                 if (debounceTimer) clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(()=> updateTypeScriptFile('unlink'), options.debounce || 200);
+                debounceTimer = setTimeout(() => updateTypeScriptFile('unlink'), options.debounce || 200);
               })
               .on('change', () => {
                 if (debounceTimer) clearTimeout(debounceTimer);
-                debounceTimer = setTimeout(()=> updateTypeScriptFile('change'), options.debounce || 200);
+                debounceTimer = setTimeout(() => updateTypeScriptFile('change'), options.debounce || 200);
               })
               .on('error', (error) => {
                 console.error(`${chalk.red('✗')} Watcher error: ${error}`);
@@ -257,13 +274,20 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
       }
     },
     
-    buildEnd() {
+    async buildEnd() {
       if (watcher) {
         try {
-          watcher.close();
-          console.log(`${chalk.yellow('⚠')} File watcher closed.`);
-        } catch (err) {
-          console.error(`${chalk.red('✗')} Error closing file watcher: ${err}`);
+          await new Promise<void>((resolve) => {
+            watcher?.close()
+              .then(() => {
+                console.log(`${chalk.yellow('⚠')} File watcher closed.`);
+                resolve();
+              })
+              .catch((err) => {
+                console.error(`${chalk.red('✗')} Error closing file watcher: ${err}`);
+                resolve(); // Still resolve to continue shutdown
+              });
+          });
         } finally {
           watcher = null;
         }
