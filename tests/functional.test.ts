@@ -73,7 +73,7 @@ describe('Functional Tests', () => {
     
     // Verify the static assets function is defined correctly
     expect(code).toContain('export function staticAssets(path: StaticAssetPath): string {');
-    expect(code).toContain('return BASE_PATH + path');
+    expect(code).toContain('return `${BASE_PATH}${path.startsWith(\'/\') ? \'\' : \'/\'}${path}`');
   });
   
   it('should respect custom ignore patterns', async () => {
