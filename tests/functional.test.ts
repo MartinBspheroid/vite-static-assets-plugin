@@ -49,8 +49,8 @@ describe('Functional Tests', () => {
     }
   });
   
-  it('should scan directory and return file list', () => {
-    const files = getAllFiles(testDir, testDir, ['.DS_Store']);
+  it('should scan directory and return file list', async () => {
+    const files = await getAllFiles(testDir, testDir, ['.DS_Store']);
     
     // Should include all files except .DS_Store
     expect(files).toContain('file1.txt');
@@ -59,8 +59,8 @@ describe('Functional Tests', () => {
     expect(files).not.toContain('.DS_Store'); // Explicitly ignored
   });
   
-  it('should generate valid TypeScript code', () => {
-    const files = getAllFiles(testDir, testDir);
+  it('should generate valid TypeScript code', async () => {
+    const files = await getAllFiles(testDir, testDir);
     const code = generateTypeScriptCode(files, 'test-dir', '/app/');
     
     // Check presence of file paths in the type definition
@@ -76,12 +76,12 @@ describe('Functional Tests', () => {
     expect(code).toContain('return BASE_PATH + path');
   });
   
-  it('should respect custom ignore patterns', () => {
+  it('should respect custom ignore patterns', async () => {
     // Add additional file types to test ignore patterns
     fs.writeFileSync(path.join(testDir, 'ignore-me.tmp'), 'Temporary file');
     fs.writeFileSync(path.join(subDir, 'another.tmp'), 'Another temp file');
     
-    const files = getAllFiles(testDir, testDir, ['.DS_Store', '**/*.tmp']);
+    const files = await getAllFiles(testDir, testDir, ['.DS_Store', '**/*.tmp']);
     
     // Should include normal files
     expect(files).toContain('file1.txt');

@@ -15,16 +15,20 @@ vi.mock('vite', () => ({
 }));
 
 // Mock file system
-vi.mock('fs', () => ({
-  existsSync: vi.fn().mockReturnValue(true),
-  readdirSync: vi.fn().mockReturnValue(['image.png', 'document.pdf']),
-  statSync: vi.fn().mockReturnValue({
-    isDirectory: () => false,
-    isFile: () => true
-  }),
-  writeFileSync: vi.fn(),
-  mkdirSync: vi.fn()
-}));
+vi.mock('fs', async () => {
+  const actual = await vi.importActual<typeof import('fs')>('fs');
+  return {
+    ...actual,
+    existsSync: vi.fn().mockReturnValue(true),
+    readdirSync: vi.fn().mockReturnValue(['image.png', 'document.pdf']),
+    statSync: vi.fn().mockReturnValue({
+      isDirectory: () => false,
+      isFile: () => true
+    }),
+    writeFileSync: vi.fn(),
+    mkdirSync: vi.fn()
+  };
+});
 
 // Mock path
 vi.mock('path', () => ({
