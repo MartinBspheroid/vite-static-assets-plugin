@@ -212,7 +212,7 @@ export function staticAssets(path: StaticAssetPath): string {
   if (!assets.has(path)) {
     throw new Error(\`Static asset "\${path}" does not exist in ${directory} directory\`);
   }
-  return \`\${BASE_PATH}\${path.startsWith('/') ? '' : '/'}\${path}\`;
+  return \`\${BASE_PATH}\${path}\`;
 }${directoryFunctionsCode}
 `;
 }
