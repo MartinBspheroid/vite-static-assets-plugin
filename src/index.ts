@@ -4,11 +4,34 @@ import * as path from 'path';
 import { normalizePath } from 'vite';
 import { minimatch } from 'minimatch';
 import chalk from 'chalk';
+import chokidar from 'chokidar';
+
+
+type updateTypeScriptFileEvent = 'add' | 'unlink' | 'change';
 
 interface StaticAssetsPluginOptions {
+  /**
+   * Directory to scan for static assets
+   * @default "public"
+   */
   directory?: string;
+  /**
+   * Output file for the generated type definitions
+   * @default "src/static-assets.ts"
+   */
   outputFile?: string;
-  ignore?: string[];  // Array of glob patterns to ignore
+  /**
+   * Array of glob patterns to ignore
+   * @default [".DS_Store"]
+   */
+  ignore?: string[];  
+
+  /**
+   * Debounce time in milliseconds for file system events
+   * This is used to avoid too many rebuilds when files are changed rapidly 
+   * @default: 200
+   */
+  debounce?: number; 
 }
 
 function getAllFiles(dir: string, baseDir: string, ignorePatterns: string[] = []): string[] {
@@ -82,14 +105,14 @@ export function staticAssets(path: StaticAssetPath): string {
 export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = {}): Plugin {
   const directory = path.resolve(process.cwd(), options.directory || 'public');
   const outputFile = path.resolve(process.cwd(), options.outputFile || 'src/static-assets.ts');
-  const ignorePatterns = options.ignore || [];
+  const ignorePatterns = options.ignore || ['.DS_Store'];
   
   // ensure output file exists 
   if (!fs.existsSync(outputFile)) {
     fs.writeFileSync(outputFile, '');
   }
   
-  let watcher: fs.FSWatcher | null = null;
+  let watcher: chokidar.FSWatcher | null = null;
   let currentFiles: Set<string> = new Set();
   let basePath = '/'; // Default to root
   
@@ -124,12 +147,48 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
       
       // Setup watcher in dev mode
       if (process.env.NODE_ENV !== 'production' && !watcher) {
-        watcher = fs.watch(fullDir, { recursive: true }, () => {
-          const updatedFiles = getAllFiles(fullDir, fullDir, ignorePatterns);
-          currentFiles = new Set(updatedFiles);
-          const updatedCode = generateTypeScriptCode(updatedFiles, directory, basePath);
-          fs.writeFileSync(outputFile, updatedCode);
-        });
+        try {
+          watcher = chokidar.watch(fullDir, {
+            ignored: ignorePatterns.map(pattern => path.join(fullDir, pattern)),
+            ignoreInitial: true,
+            persistent: true
+          });
+
+          // Debounce function to avoid too many rebuilds
+          let debounceTimer: NodeJS.Timeout | null = null;
+
+          const updateTypeScriptFile = (eventType : updateTypeScriptFileEvent) => {
+            try {
+              const updatedFiles = getAllFiles(fullDir, fullDir, ignorePatterns);
+              currentFiles = new Set(updatedFiles);
+              const updatedCode = generateTypeScriptCode(updatedFiles, directory, basePath);
+              fs.writeFileSync(outputFile, updatedCode);
+              console.log(`${chalk.green('✓')} Updated static assets type definitions.`);
+            } catch (err) {
+              console.error(`${chalk.red('✗')} Error updating static assets: ${err}`);
+            }
+          };
+
+          // Set up event handlers for all relevant file system events
+          watcher
+            .on('add', () => {
+              if (debounceTimer) clearTimeout(debounceTimer);
+              debounceTimer = setTimeout(()=> updateTypeScriptFile("add"), options.debounce || 200);
+            })
+            .on('unlink', () => {
+              if (debounceTimer) clearTimeout(debounceTimer);
+              debounceTimer = setTimeout(()=> updateTypeScriptFile('unlink'), options.debounce || 200);
+            })
+            .on('change', () => {
+              if (debounceTimer) clearTimeout(debounceTimer);
+              debounceTimer = setTimeout(()=> updateTypeScriptFile('change'), options.debounce || 200);
+            })
+            .on('error', (error) => {
+              console.error(`${chalk.red('✗')} Watcher error: ${error}`);
+            });
+        } catch (err) {
+          console.error(`${chalk.red('✗')} Error setting up file watcher: ${err}`);
+        }
       }
     },
 
@@ -159,9 +218,15 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
     
     buildEnd() {
       if (watcher) {
-        watcher.close();
-        watcher = null;
+        try {
+          watcher.close();
+          console.log(`${chalk.yellow('⚠')} File watcher closed.`);
+        } catch (err) {
+          console.error(`${chalk.red('✗')} Error closing file watcher: ${err}`);
+        } finally {
+          watcher = null;
+        }
       }
     },
-  };
+  } as Plugin
 }

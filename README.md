@@ -107,6 +107,56 @@ If your code references an asset using staticAssets('asset-path') that does not 
 
 <img width="1048" alt="Screenshot 2025-02-25 at 12 56 50" src="https://github.com/user-attachments/assets/aad8cd9e-b5db-46b8-9ef9-73b031795482" />
 
+TypeScript Integration
+--------------
+
+This plugin is designed to work seamlessly with TypeScript. If you're using TypeScript and encounter type errors, make sure to:
+
+1. **Import the plugin correctly in your Vite config file:**
+
+```typescript
+// vite.config.ts
+import { defineConfig } from 'vite';
+import staticAssetsPlugin from 'vite-static-assets-plugin';
+
+export default defineConfig({
+  plugins: [staticAssetsPlugin()]
+});
+```
+
+2. **If you encounter TypeScript errors about incompatible plugin types**, you can use the plugin with a type assertion:
+
+```typescript
+import { defineConfig } from 'vite';
+import staticAssetsPlugin from 'vite-static-assets-plugin';
+
+export default defineConfig({
+  plugins: [staticAssetsPlugin() as any]
+});
+```
+
+3. **Ensure the generated TypeScript module is included in your tsconfig.json:**
+
+```json
+{
+  "include": [
+    "src/**/*.ts",
+    "src/**/*.d.ts",
+    "src/static-assets.ts"
+  ]
+}
+```
+
+4. **If you're using a module declaration file in your project**, add a declaration for the static assets module:
+
+```typescript
+// src/types.d.ts
+declare module '*/static-assets' {
+  export type StaticAssetPath = string;
+  export function staticAssets(path: StaticAssetPath): string;
+}
+```
+
 
 License
 -------
