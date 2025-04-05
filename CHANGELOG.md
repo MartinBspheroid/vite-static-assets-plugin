@@ -2,7 +2,7 @@
 
 Changelog for the [vite-static-assets-plugin](https://github.com/MartinBspheroid/vite-static-assets-plugin).
 
-## [1.1.2] - 2025-04-04
+## [1.1.3] - 2025-04-04
 
 ### 🚀 Features
 
@@ -17,7 +17,7 @@ Changelog for the [vite-static-assets-plugin](https://github.com/MartinBspheroid
 ### ⚙️ Miscellaneous Tasks
 
 - Update actions/cache to v4 in npm-publish workflow
-- Release v1.1.2
+- Release v1.1.3
 
 ## [1.0.7] - 2025-04-03
 
