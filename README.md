@@ -29,6 +29,7 @@ A Vite plugin that automatically scans a specified directory for static assets, 
 
 - **Automatic Asset Scanning:** Recursively scans a directory (default: `public`) for static assets.
 - **Type-Safe API:** Generates a TypeScript module with a union type (`StaticAssetPath`) representing all valid asset paths.
+- **Directory Grouping & Directory Helper Functions:** Generates directory path types, provides `directoryExists()` and `staticAssetsFromDir()` helpers to work with groups of assets in subdirectories, with configurable depth and validation.
 - **Helper Function:** Provides a `staticAssets()` function to retrieve the URL for a static asset.
 - **Customizable:** Supports custom directories, output file paths, and glob-based ignore patterns.
 - **Live Updates in Development:** Watches the asset directory and updates the generated file on changes.
@@ -258,6 +259,48 @@ You can customize the plugin behavior by passing an options object to the plugin
 * **ignore?: string[]** - An array of glob patterns specifying files or directories to ignore during the asset scan. Default: `['.DS_Store']`.
 
 * **debounce?: number** - Debounce time in milliseconds for file system events. Default: `200`.
+
+## Working with Asset Directories
+
+This plugin can also help you work with groups of related assets in specific directories:
+
+```typescript
+import { staticAssetsFromDir, directoryExists } from './static-assets';
+
+// Check if a directory exists first (optional)
+if (directoryExists('icons/partners/')) {
+  // Get all partner icons
+  const partnerIcons = staticAssetsFromDir('icons/partners/');
+  
+  // Use in a Svelte component
+  <div class="partner-logos">
+    {#each partnerIcons as icon}
+      <img src={icon} alt="Partner logo" />
+    {/each}
+  </div>
+}
+```
+
+### Configuration Options
+
+You can configure directory-related features through the plugin options:
+
+```typescript
+staticAssetsPlugin({
+  // Standard options
+  directory: 'public',
+  outputFile: 'src/static-assets.ts',
+  ignore: ['**/*.tmp'],
+  
+  // Directory feature options
+  enableDirectoryTypes: true,        // Enable/disable directory type generation
+  maxDirectoryDepth: 5,              // Maximum directory nesting level for type generation
+  allowEmptyDirectories: false,      // Whether to allow referencing empty directories
+  addLeadingSlash: true,             // Whether asset URLs should have a leading slash
+})
+```
+
+These options help you control the behavior of the directory feature and optimize performance for larger projects.
 
 ## Error Handling
 

@@ -32,6 +32,30 @@ interface StaticAssetsPluginOptions {
    * @default: 200
    */
   debounce?: number; 
+
+  /**
+   * Enable generation of directory types and helper functions
+   * @default true
+   */
+  enableDirectoryTypes?: boolean;
+
+  /**
+   * Maximum directory nesting level for type generation
+   * @default 5
+   */
+  maxDirectoryDepth?: number;
+
+  /**
+   * Whether to allow referencing empty directories
+   * @default false
+   */
+  allowEmptyDirectories?: boolean;
+
+  /**
+   * Whether asset URLs should have a leading slash
+   * @default true
+   */
+  addLeadingSlash?: boolean;
 }
 
 /**
@@ -82,41 +106,114 @@ async function getAllFiles(dir: string, baseDir: string, ignorePatterns: string[
   }
 }
 
-function generateTypeScriptCode(files: string[], directory: string, basePath: string = '/'): string {
+import * as pathModule from 'path';
+
+function extractDirectories(
+  files: string[], 
+  maxDepth: number = 5
+): Set<string> {
+  const directories = new Set<string>();
+  
+  files.forEach(file => {
+    const dirPath = path.posix.dirname(file);
+    if (dirPath === '.') return;
+    
+    const parts = dirPath.split('/');
+    let currentPath = '';
+    
+    for (let i = 0; i < Math.min(parts.length, maxDepth); i++) {
+      if (parts[i] === '') continue;
+      currentPath += parts[i] + '/';
+      directories.add(currentPath);
+    }
+  });
+  
+  return directories;
+}
+
+function generateTypeScriptCode(
+  files: string[], 
+  directory: string,
+  basePath: string = '/',
+  options: StaticAssetsPluginOptions = {}
+): string {
+  const {
+    enableDirectoryTypes = true,
+    maxDirectoryDepth = 5,
+    allowEmptyDirectories = false,
+    addLeadingSlash = true,
+  } = options;
+  
   const fileList = files.length > 0 
-    ? files.map(file => `  '${file}'`).join(' |\n')
-    : '  never';  // Handle case when no files are found
+    ? files.map(file => `  '${file}'`).join(' |\n') 
+    : '  never';
+  
+  let directoryTypesCode = '';
+  let directoryFunctionsCode = '';
+  
+  if (enableDirectoryTypes) {
+    const directories = extractDirectories(files, maxDirectoryDepth);
+    
+    if (directories.size > 0) {
+      const directoryList = Array.from(directories)
+        .map(dir => `  '${dir}'`)
+        .join(' |\n');
+      
+      directoryTypesCode = `
+export type StaticAssetDirectory = 
+${directoryList};`;
+
+      directoryFunctionsCode = `
+/**
+ * Checks if a directory exists and contains assets
+ * @param dirPath Directory path to check
+ * @returns True if the directory exists and contains assets
+ */
+export function directoryExists(dirPath: string): boolean {
+  const normalizedPath = pathModule.posix.normalize(dirPath);
+  const dirPathWithSlash = normalizedPath.endsWith('/') ? normalizedPath : \`\${normalizedPath}/\`;
+  return Array.from(assets).some(path => path.startsWith(dirPathWithSlash));
+}
+
+/**
+ * Gets all asset paths from a specific directory
+ * @param dirPath Directory path
+ * @returns Array of all asset paths in the directory
+ */
+export function staticAssetsFromDir(dirPath: StaticAssetDirectory): string[] {
+  const normalizedPath = pathModule.posix.normalize(dirPath);
+  const dirPathWithSlash = normalizedPath.endsWith('/') ? normalizedPath : \`\${normalizedPath}/\`;
+  
+  return Array.from(assets)
+    .filter(path => path.startsWith(dirPathWithSlash))
+    .map(path => ${addLeadingSlash ? "'/'" : "''"} + path);
+}`;
+    }
+  }
   
   return `// This file is auto-generated. Do not edit it manually.
+import * as pathModule from 'path';
 
 export type StaticAssetPath = 
-${fileList};
+${fileList};${directoryTypesCode}
 
 const assets = new Set<string>([
 ${files.map(file => `  '${file}'`).join(',\n')}
 ]);
+
 const BASE_PATH = ${JSON.stringify(basePath)};
+
 /**
- * 
- * @param path path to the asset 
- * @returns  the URL for the asset
- * 
- * Function provided by the plugin to get the URL for a static asset
- * 
- * Makes it easier to use the assets in the code without having to remember the path
- * 
- * Also provides a type safety for the asset path and the URL returned 
- * * @example 
- * <img src={staticAssets('logo.svg')} alt="logo">
- * 
- * 
- *  */
+ * Gets the URL for a specific static asset
+ * @param path Path to the asset
+ * @returns The URL for the asset
+ */
 export function staticAssets(path: StaticAssetPath): string {
   if (!assets.has(path)) {
     throw new Error(\`Static asset "\${path}" does not exist in ${directory} directory\`);
   }
-  return BASE_PATH + path;
-}
+  return \`\${BASE_PATH}\${path.startsWith('/') ? '' : '/'}\${path}\`;
+}${directoryFunctionsCode}
 `;
 }
 
@@ -178,7 +275,7 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
         // Generate initial file
         const files = await getAllFiles(fullDir, fullDir, ignorePatterns);
         currentFiles = new Set(files);
-        const code = generateTypeScriptCode(files, directory, basePath);
+        const code = generateTypeScriptCode(files, directory, basePath, options);
         
         // Ensure output directory exists and write file
         await ensureOutputFile();
@@ -201,7 +298,7 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
               try {
                 const updatedFiles = await getAllFiles(fullDir, fullDir, ignorePatterns);
                 currentFiles = new Set(updatedFiles);
-                const updatedCode = generateTypeScriptCode(updatedFiles, directory, basePath);
+                const updatedCode = generateTypeScriptCode(updatedFiles, directory, basePath, options);
                 await fs.promises.writeFile(outputFile, updatedCode);
                 console.log(`${chalk.green('✓')} Updated static assets type definitions (${eventType}).`);
               } catch (err) {
@@ -260,11 +357,36 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
         }
       }
       
+      // Skip directory validation if disabled
+      if (options.enableDirectoryTypes === false) {
+        return null;
+      }
+
+      const staticAssetsDirRegex = /staticAssetsFromDir\(['"]([^'"]+)['"]\)/g;
+      let dirMatch;
+
+      while ((dirMatch = staticAssetsDirRegex.exec(code)) !== null) {
+        const dirPath = dirMatch[1];
+        const normalizedPath = path.posix.normalize(dirPath);
+        const dirPathWithSlash = normalizedPath.endsWith('/') ? normalizedPath : `${normalizedPath}/`;
+
+        const hasAssetsInDir = Array.from(currentFiles).some(file =>
+          file.startsWith(dirPathWithSlash)
+        );
+
+        if (!hasAssetsInDir && !options.allowEmptyDirectories) {
+          const message = `\n\nStatic asset directory: ${chalk.yellowBright(dirPathWithSlash)} \n (referenced in ${chalk.yellow(id)})\n does not exist or is empty in ${chalk.yellow(directory)} directory.\n\n` +
+            `Make sure the directory exists and contains assets.\n\n`;
+
+          throw new Error(message);
+        }
+      }
+
       return null;
       } catch (err) {
         // Only re-throw errors we've created (with specific error messages)
         // This prevents unexpected errors from breaking the build completely
-        if (err instanceof Error && err.message.includes('Static asset:')) {
+        if (err instanceof Error && (err.message.includes('Static asset:') || err.message.includes('Static asset directory:'))) {
           throw err;
         }
         
