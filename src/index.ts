@@ -112,6 +112,9 @@ export function staticAssets(path: StaticAssetPath): string {
 `;
 }
 
+// Export these functions for testing purposes
+export { getAllFiles, generateTypeScriptCode };
+
 export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = {}): Plugin {
   const directory = path.resolve(process.cwd(), options.directory || 'public');
   const outputFile = path.resolve(process.cwd(), options.outputFile || 'src/static-assets.ts');

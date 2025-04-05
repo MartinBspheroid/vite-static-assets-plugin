@@ -1,4 +1,5 @@
 
+
 <p align="center">
   <img  height="300" src="https://github.com/user-attachments/assets/a2078a6a-d79b-4e8f-88c9-c11a4675797b">
 </p>
@@ -156,6 +157,31 @@ declare module '*/static-assets' {
   export function staticAssets(path: StaticAssetPath): string;
 }
 ```
+Development
+-----------
+
+### Testing
+
+This project uses Vitest for testing. The test suite includes unit tests, integration tests, and functional tests:
+
+```bash
+# Run all tests
+npm test
+
+# Run tests in watch mode (for development)
+npm run test:watch
+
+# Run tests with coverage report
+npm run test:coverage
+```
+
+Test files are located in the `tests/` directory:
+
+- **Unit Tests**: Test individual functions (e.g., `getAllFiles`, `generateTypeScriptCode`)
+- **Integration Tests**: Test interaction with Vite
+- **Functional Tests**: Test real file system operations
+
+When contributing, please ensure that your changes pass all existing tests and add new tests for any new functionality.
 
 
 License
