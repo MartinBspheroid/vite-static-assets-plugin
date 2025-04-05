@@ -8,7 +8,8 @@
     "esModuleInterop": true,
     "strict": true,
     "skipLibCheck": true,
-    "types": ["vitest"]
+    "types": ["vitest"],
+    
   },
-  "include": ["src/**/*", "tests/**/*"]
+  "include": ["src/**/*"]
 }
