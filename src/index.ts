@@ -37,28 +37,38 @@ interface StaticAssetsPluginOptions {
 function getAllFiles(dir: string, baseDir: string, ignorePatterns: string[] = []): string[] {
   const files: string[] = [];
   
-  const items = fs.readdirSync(dir);
-  
-  for (const item of items) {
-    const fullPath = path.join(dir, item);
-    const relativePath = normalizePath(path.relative(baseDir, fullPath));
+  try {
+    const items = fs.readdirSync(dir);
     
-    // Check if the file/directory should be ignored
-    const shouldIgnore = ignorePatterns.some(pattern => 
-      minimatch(relativePath, pattern, { dot: true })
-    );
-    
-    if (shouldIgnore) {
-      continue;
+    for (const item of items) {
+      try {
+        const fullPath = path.join(dir, item);
+        const relativePath = normalizePath(path.relative(baseDir, fullPath));
+        
+        // Check if the file/directory should be ignored
+        const shouldIgnore = ignorePatterns.some(pattern => 
+          minimatch(relativePath, pattern, { dot: true })
+        );
+        
+        if (shouldIgnore) {
+          continue;
+        }
+        
+        const stat = fs.statSync(fullPath);
+        
+        if (stat.isDirectory()) {
+          files.push(...getAllFiles(fullPath, baseDir, ignorePatterns));
+        } else {
+          files.push(relativePath);
+        }
+      } catch (err) {
+        console.warn(`${chalk.yellow('⚠')} Error processing file ${item}: ${err}`);
+        // Continue with other files instead of breaking completely
+      }
     }
-    
-    const stat = fs.statSync(fullPath);
-    
-    if (stat.isDirectory()) {
-      files.push(...getAllFiles(fullPath, baseDir, ignorePatterns));
-    } else {
-      files.push(relativePath);
-    }
+  } catch (err) {
+    console.error(`${chalk.red('✗')} Error reading directory ${dir}: ${err}`);
+    // Return empty array on directory read failure
   }
   
   return files;
@@ -125,74 +135,91 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
     },
     
     buildStart() {
-      const fullDir = path.resolve(directory);
-      
-      // Ensure directory exists
-      if (!fs.existsSync(fullDir)) {
-        throw new Error(`Directory "${directory}" does not exist`);
-      }
-      
-      // Generate initial file
-      const files = getAllFiles(fullDir, fullDir, ignorePatterns);
-      currentFiles = new Set(files);
-      const code = generateTypeScriptCode(files, directory, basePath);
-      
-      // Ensure output directory exists
-      const outputDir = path.dirname(outputFile);
-      if (!fs.existsSync(outputDir)) {
-        fs.mkdirSync(outputDir, { recursive: true });
-      }
-      
-      fs.writeFileSync(outputFile, code);
-      
-      // Setup watcher in dev mode
-      if (process.env.NODE_ENV !== 'production' && !watcher) {
-        try {
-          watcher = chokidar.watch(fullDir, {
-            ignored: ignorePatterns.map(pattern => path.join(fullDir, pattern)),
-            ignoreInitial: true,
-            persistent: true
-          });
-
-          // Debounce function to avoid too many rebuilds
-          let debounceTimer: NodeJS.Timeout | null = null;
-
-          const updateTypeScriptFile = (eventType : updateTypeScriptFileEvent) => {
-            try {
-              const updatedFiles = getAllFiles(fullDir, fullDir, ignorePatterns);
-              currentFiles = new Set(updatedFiles);
-              const updatedCode = generateTypeScriptCode(updatedFiles, directory, basePath);
-              fs.writeFileSync(outputFile, updatedCode);
-              console.log(`${chalk.green('✓')} Updated static assets type definitions.`);
-            } catch (err) {
-              console.error(`${chalk.red('✗')} Error updating static assets: ${err}`);
-            }
-          };
-
-          // Set up event handlers for all relevant file system events
-          watcher
-            .on('add', () => {
-              if (debounceTimer) clearTimeout(debounceTimer);
-              debounceTimer = setTimeout(()=> updateTypeScriptFile("add"), options.debounce || 200);
-            })
-            .on('unlink', () => {
-              if (debounceTimer) clearTimeout(debounceTimer);
-              debounceTimer = setTimeout(()=> updateTypeScriptFile('unlink'), options.debounce || 200);
-            })
-            .on('change', () => {
-              if (debounceTimer) clearTimeout(debounceTimer);
-              debounceTimer = setTimeout(()=> updateTypeScriptFile('change'), options.debounce || 200);
-            })
-            .on('error', (error) => {
-              console.error(`${chalk.red('✗')} Watcher error: ${error}`);
-            });
-        } catch (err) {
-          console.error(`${chalk.red('✗')} Error setting up file watcher: ${err}`);
+      try {
+        const fullDir = path.resolve(directory);
+        
+        // Ensure directory exists
+        if (!fs.existsSync(fullDir)) {
+          throw new Error(`Directory "${directory}" does not exist`);
         }
+        
+        // Generate initial file
+        const files = getAllFiles(fullDir, fullDir, ignorePatterns);
+        currentFiles = new Set(files);
+        const code = generateTypeScriptCode(files, directory, basePath);
+        
+        // Ensure output directory exists
+        const outputDir = path.dirname(outputFile);
+        try {
+          if (!fs.existsSync(outputDir)) {
+            fs.mkdirSync(outputDir, { recursive: true });
+          }
+        } catch (err) {
+          throw new Error(`Failed to create output directory "${outputDir}": ${err}`);
+        }
+        
+        try {
+          fs.writeFileSync(outputFile, code);
+          console.log(`${chalk.green('✓')} Generated static assets type definitions at ${chalk.blue(outputFile)}`);
+        } catch (err) {
+          throw new Error(`Failed to write output file "${outputFile}": ${err}`);
+        }
+        
+        // Setup watcher in dev mode
+        if (process.env.NODE_ENV !== 'production' && !watcher) {
+          try {
+            watcher = chokidar.watch(fullDir, {
+              ignored: ignorePatterns.map(pattern => path.join(fullDir, pattern)),
+              ignoreInitial: true,
+              persistent: true
+            });
+
+            // Debounce function to avoid too many rebuilds
+            let debounceTimer: NodeJS.Timeout | null = null;
+
+            const updateTypeScriptFile = (eventType : updateTypeScriptFileEvent) => {
+              try {
+                const updatedFiles = getAllFiles(fullDir, fullDir, ignorePatterns);
+                currentFiles = new Set(updatedFiles);
+                const updatedCode = generateTypeScriptCode(updatedFiles, directory, basePath);
+                fs.writeFileSync(outputFile, updatedCode);
+                console.log(`${chalk.green('✓')} Updated static assets type definitions (${eventType}).`);
+              } catch (err) {
+                console.error(`${chalk.red('✗')} Error updating static assets: ${err}`);
+              }
+            };
+
+            // Set up event handlers for all relevant file system events
+            watcher
+              .on('add', () => {
+                if (debounceTimer) clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(()=> updateTypeScriptFile("add"), options.debounce || 200);
+              })
+              .on('unlink', () => {
+                if (debounceTimer) clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(()=> updateTypeScriptFile('unlink'), options.debounce || 200);
+              })
+              .on('change', () => {
+                if (debounceTimer) clearTimeout(debounceTimer);
+                debounceTimer = setTimeout(()=> updateTypeScriptFile('change'), options.debounce || 200);
+              })
+              .on('error', (error) => {
+                console.error(`${chalk.red('✗')} Watcher error: ${error}`);
+              });
+          } catch (err) {
+            console.error(`${chalk.red('✗')} Error setting up file watcher: ${err}`);
+            // Don't re-throw here since watcher is non-critical for the build
+          }
+        }
+      } catch (err) {
+        // For critical errors, we want to halt the build process
+        console.error(`${chalk.red('✗')} Static assets plugin error: ${err}`);
+        throw err; // Re-throw to halt the build process for critical errors
       }
     },
 
     transform(code: string, id: string) {
+      try {
       // Only process JSX/TSX/JS/TS/vue/svelte files
       if (!id.match(/\.(jsx?|tsx?|js|ts|vue|svelte)$/)) {
         return null;
@@ -214,6 +241,17 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
       }
       
       return null;
+      } catch (err) {
+        // Only re-throw errors we've created (with specific error messages)
+        // This prevents unexpected errors from breaking the build completely
+        if (err instanceof Error && err.message.includes('Static asset:')) {
+          throw err;
+        }
+        
+        // For unexpected errors, log and continue
+        console.error(`${chalk.red('✗')} Error validating asset references in ${id}: ${err}`);
+        return null;
+      }
     },
     
     buildEnd() {
