@@ -419,9 +419,8 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
 
       try {
         const staticAssetsRegex = /staticAssets\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-        let match : RegExpExecArray | null;
-
-        while ((match = staticAssetsRegex.exec(code)) !== null) {
+        const match: RegExpExecArray | null = staticAssetsRegex.exec(code);
+        while (match !== null) {
           const assetPath = match[1];
           if (!currentFiles.has(assetPath)) {
              const relativeId = normalizePath(path.relative(process.cwd(), id));
@@ -435,9 +434,8 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
         // Validate staticAssetsFromDir if enabled - Original Logic
         if (enableDirectoryTypes) {
             const staticAssetsDirRegex = /staticAssetsFromDir\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-            let dirMatch;
-
-            while ((dirMatch = staticAssetsDirRegex.exec(code)) !== null) {
+            const dirMatch: RegExpExecArray | null = staticAssetsDirRegex.exec(code);
+            while (dirMatch !== null) {
                 const dirPath = dirMatch[1];
                 let hasAssetsInDir = false;
 
