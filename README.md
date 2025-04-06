@@ -32,12 +32,59 @@ A Vite plugin that **automatically scans your static assets directory**, generat
 - 🔄 **Live Updates:** Watches the directory in development mode and regenerates types on changes.
 - 🧭 **Validation:** Validates asset references and directory references during build, with detailed error messages.
 - ⚡ **Fast:** Minimal overhead, optimized for large projects.
-
----
-
 <p style="text-align: center; display: flex;  justify-content: center; align-items: center; gap: 10px;">
 Built with <a href="https://bun.sh"><img src="https://bun.sh/logo.svg" alt="Bun Logo" height="16" /> Bun</a> – the ultra-fast JavaScript runtime & toolkit
 </p>
+
+---
+
+
+## Usage
+
+Import the generated function and types:
+
+```typescript
+import { staticAssets, StaticAssetPath, StaticAssetDirectory, FilesInFolder } from './static-assets';
+
+// Use the helper function
+const logoUrl = staticAssets('images/logo.svg');
+
+// Type-safe variables
+const assetPath: StaticAssetPath = 'fonts/roboto.woff2';
+
+const dir: StaticAssetDirectory = 'images/';
+
+
+// Type-safe list of files directly inside 'icons/brands/'
+type  Icons = FilesInFolder<'icons/brands/'>;
+// use Icons type in your code
+type Brands = {
+  icon: Icons,
+  name: string
+}
+// Create a list of brands with their icons and names
+// get autocompletion and type checking!
+const brands: Brands[] = [
+  {
+    icon: "icons/brands/coke.svg",
+    name: "Coke"
+  },
+  {
+    icon: "icons/brands/pepsi.svg",
+    name: "Pepsi"
+  },
+  {
+    icon: "icons/brands/rc-cola.svg",
+    name: "RC Cola"
+  },
+  {
+    icon: "icons/brands/dr-pepper.svg",
+    name: "Dr Pepper"
+  },
+]
+
+```
+
 
 ---
 
@@ -136,24 +183,6 @@ If you pass an invalid path, it throws an error at runtime and TypeScript will c
 
 ---
 
-## Usage
-
-Import the generated function and types:
-
-```typescript
-import { staticAssets, StaticAssetPath, StaticAssetDirectory, FilesInFolder } from './static-assets';
-
-// Use the helper function
-const logoUrl = staticAssets('images/logo.svg');
-
-// Type-safe variables
-const assetPath: StaticAssetPath = 'fonts/roboto.woff2';
-
-const dir: StaticAssetDirectory = 'images/';
-
-// Files directly inside 'images/'
-type ImageFiles = FilesInFolder<'images/'>;
-```
 
 Use it in your components:
 
