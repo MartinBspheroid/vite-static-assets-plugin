@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import * as fs from 'fs';
 import * as path from 'path';
-import { getAllFiles, generateTypeScriptCode } from '../src/index';
+import { getAllFiles, generateTypeScriptCode } from '../../../src/index';
 
 describe('Functional Tests', () => {
   // Create a temporary test directory
