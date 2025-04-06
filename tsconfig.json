@@ -11,5 +11,5 @@
     "types": ["vitest"],
     
   },
-  "include": ["src/**/*"]
+  
 }

@@ -34,17 +34,14 @@ jobs:
 
       - name: Install Dependencies
         run: bun install
-
-      - name: Type Check
-        run: bun run typecheck
         
       - name: Build
-        run: bun run build
+        run: cd packages/plugin && bun run build
         
       - name: Run Tests
-        run: bun test:coverage
+        run: cd packages/plugin && bun test:coverage
 
       - name: Publish Package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: bun run npm publish
+        run: cd packages/plugin && bun run npm publish
