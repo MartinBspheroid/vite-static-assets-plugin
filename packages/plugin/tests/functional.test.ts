@@ -1,7 +1,7 @@
 import { describe, it, expect, beforeEach, afterEach } from 'vitest';
-import * as fs from 'fs';
-import * as path from 'path';
-import { getAllFiles, generateTypeScriptCode } from '../../../src/index';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
+import { getAllFiles, generateTypeScriptCode } from '../src/index';
 
 describe('Functional Tests', () => {
   // Create a temporary test directory
@@ -31,7 +31,8 @@ describe('Functional Tests', () => {
     if (fs.existsSync(testDir)) {
       const deleteDir = (dirPath: string) => {
         if (fs.existsSync(dirPath)) {
-          fs.readdirSync(dirPath).forEach((file) => {
+          const files = fs.readdirSync(dirPath)
+          for (const file of files) {
             const curPath = path.join(dirPath, file);
             if (fs.lstatSync(curPath).isDirectory()) {
               // Recursive call for directories
@@ -40,7 +41,7 @@ describe('Functional Tests', () => {
               // Delete file
               fs.unlinkSync(curPath);
             }
-          });
+          }
           fs.rmdirSync(dirPath);
         }
       };
@@ -48,6 +49,7 @@ describe('Functional Tests', () => {
       deleteDir(testDir);
     }
   });
+
   
   it('should scan directory and return file list', async () => {
     const files = await getAllFiles(testDir, testDir, ['.DS_Store']);

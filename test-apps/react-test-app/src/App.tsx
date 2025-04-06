@@ -2,7 +2,36 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
-import { staticAssets,staticAssetsFromDir } from "./static-assets"
+import { staticAssets , type FilesInFolder} from "./static-assets"
+
+type  Icons = FilesInFolder<'icons/sun/'>;
+
+type Suns = {
+  icon: Icons,
+  name: string
+
+}
+
+const suns: Suns[] = [
+  {
+    icon: "icons/sun/line-md--sunny.svg",
+    name: "Sunny"
+  },
+  {
+    icon: "icons/sun/line-md--sun-rising-loop.svg",
+    name: "Sun Rising"
+  },
+  {
+    icon: "icons/sun/line-md--sun-rising-twotone-loop.svg",
+    name: "Sun Rising Twotone"
+  },
+  {
+    icon: "icons/sun/line-md--sun-rising-filled-loop.svg",
+    name: "Sun Rising Filled"
+  }
+
+]
+
 
 function App() {
   const [count, setCount] = useState(0)
@@ -21,13 +50,8 @@ function App() {
           <img src={reactLogo} className="logo react" alt="React logo" />
         </a>
       </div>
-      {staticAssetsFromDir("icons/").map((path) => (
-        <img key={path} src={path} className="logo" alt="logo" style={{
-          width: "24px"
-        }} />
-      ))}
-      {staticAssetsFromDir("icons/sun/").map((path) => (
-        <img key={path} src={path} className="logo" alt="logo" style={{
+     {suns.map(sun => (
+        <img key={sun.name} src={staticAssets(sun.icon)} className="logo" alt={sun.name} style={{
           width: "24px"
         }} />
       ))}

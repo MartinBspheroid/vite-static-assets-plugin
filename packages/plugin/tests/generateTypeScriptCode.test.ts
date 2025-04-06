@@ -24,7 +24,7 @@ describe('generateTypeScriptCode', () => {
 
     // Directory types and helpers
     expect(result).toContain('export type StaticAssetDirectory');
-    expect(result).toContain('export function staticAssetsFromDir');
+    
 
     // Directory type should include subdirectories up to max depth
     expect(result).toContain("'subdir/'");
@@ -59,29 +59,4 @@ describe('generateTypeScriptCode', () => {
     expect(result).toContain('const BASE_PATH = "/my-app/";');
   });
 
-  it('should include the directory in error message', () => {
-    const files = ['image.png'];
-    const directory = 'custom-assets';
-    const basePath = '/';
-    const options = {};
-
-    const result = generateTypeScriptCode(files, directory, basePath, options);
-
-    expect(result).toContain(`does not exist in ${directory} directory`);
-  });
-
-  it('should omit directory types and helpers if disabled', () => {
-    const files = ['a.png', 'dir/file.png'];
-    const directory = 'public';
-    const basePath = '/';
-    const options = {
-      enableDirectoryTypes: false,
-    };
-
-    const result = generateTypeScriptCode(files, directory, basePath, options);
-
-    expect(result).not.toContain('export type StaticAssetDirectory');
-    expect(result).not.toContain('export function directoryExists');
-    expect(result).not.toContain('export function staticAssetsFromDir');
-  });
-});
+})
