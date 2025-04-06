@@ -1,7 +1,7 @@
 // This file is auto-generated. Do not edit it manually.
 
 
-export type StaticAssetPath = 
+export type StaticAssetPath =
   'icons/line-md--alert-circle2.svg' |
   'icons/line-md--chevron-small-triple-down.svg' |
   'icons/line-md--compass-filled-loop.svg' |
@@ -14,9 +14,33 @@ export type StaticAssetPath =
   'icons/sun/line-md--sunny.svg' |
   'logo.png' |
   'vite.svg';
-export type StaticAssetDirectory = 
+
+/**
+ * Represents the known directories containing static assets.
+ * '.' represents the root directory.
+ */
+export type StaticAssetDirectory =
+  '.' |
   'icons/' |
   'icons/sun/';
+
+/**
+ * Represents the relative paths of files located *directly* within a specific directory.
+ * Use '.' for the root directory.
+ * @template Dir - A directory path string literal type from StaticAssetDirectory (e.g., 'icons/', 'icons/sun/', '.').
+ */
+export type FilesInFolder<Dir extends '.' | StaticAssetDirectory> = 
+  Dir extends '.'
+    ? Exclude<StaticAssetPath, `${string}/${string}`>
+    : Extract<StaticAssetPath, `${Dir}${string}`> extends infer Match
+      ? Match extends `${Dir}${infer FileName}`
+        ? FileName extends `${string}/${string}`
+          ? never
+          : Match
+        : never
+      : never;
+
+
 
 const assets = new Set<string>([
   'icons/line-md--alert-circle2.svg',
@@ -33,7 +57,9 @@ const assets = new Set<string>([
   'vite.svg'
 ]);
 
+// Store basePath resolved from Vite config
 const BASE_PATH = "/";
+
 
 /**
  * Gets the URL for a specific static asset
@@ -42,33 +68,10 @@ const BASE_PATH = "/";
  */
 export function staticAssets(path: StaticAssetPath): string {
   if (!assets.has(path)) {
-    throw new Error(`Static asset "${path}" does not exist in /Users/martinblasko/Code/playground/vite-static-assets-plugin/test-apps/react-test-app/public directory`);
+    throw new Error(
+      "Static asset does not exist in static assets directory"
+    );
   }
   return `${BASE_PATH}${path}`;
 }
-
-      /**
-       * Gets all asset paths from a specific directory
-       * @param dirPath Directory path
-       * @returns Array of all asset paths in the directory
-       */
-      function normalizePath(p: string): string {
-        // Replace backslashes with slashes
-        p = p.replace(/\\/g, '/');
-        // Remove duplicate slashes
-        p = p.replace(/\/+/g, '/');
-        // Remove leading './'
-        p = p.replace(/^\.\/+/g, '');
-        // Resolve trailing slash
-        return p.endsWith('/') ? p : p + '/';
-      }
-      
-      export function staticAssetsFromDir(dirPath: StaticAssetDirectory): string[] {
-        const normalizedDir = normalizePath(dirPath);
-      
-        return Array.from(assets)
-          .filter(path => path.startsWith(normalizedDir))
-          .map(path => '/' + path);
-      }
-      
 
