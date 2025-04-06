@@ -10,14 +10,14 @@ function App() {
   return (
     <>
       <div>
-        <a href="https://vite.dev" target="_blank">
+        <a href="https://vite.dev" target="_blank" rel="noreferrer">
           <img src={staticAssets("logo.png")} className="logo" alt="Vite Static Assets logo" />
         </a>
 
-        <a href="https://vite.dev" target="_blank">
+        <a href="https://vite.dev" target="_blank" rel="noreferrer">
           <img src={viteLogo} className="logo" alt="Vite logo" />
         </a>
-        <a href="https://react.dev" target="_blank">
+        <a href="https://react.dev" target="_blank" rel="noreferrer">
           <img src={reactLogo} className="logo react" alt="React logo" />
         </a>
       </div>
@@ -35,7 +35,9 @@ function App() {
         color: "lightblue"
       }}>vite-static-assets-plugin</span> + React</h1>
       <div className="card">
-        <button onClick={() => setCount((count) => count + 1)}>
+        <button
+          type="button"
+        onClick={() => setCount((count: number) => count + 1)}>
           count is {count}
         </button>
         <p>

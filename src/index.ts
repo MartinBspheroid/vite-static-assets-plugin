@@ -1,6 +1,6 @@
 import type { Plugin } from 'vite';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
+import * as path from 'node:path';
 import { normalizePath } from 'vite';
 import { minimatch } from 'minimatch';
 import chalk from 'chalk';
@@ -88,9 +88,9 @@ async function getAllFiles(dir: string, baseDir: string, ignorePatterns: string[
           // Recursively get files from subdirectory
           const subFiles = await getAllFiles(fullPath, baseDir, ignorePatterns);
           return subFiles;
-        } else {
-          return [relativePath];
         }
+          return [relativePath];
+        
       } catch (err) {
         console.warn(`${chalk.yellow('⚠')} Error processing file ${item}: ${err}`);
         return []; // Continue with other files instead of breaking completely
@@ -106,27 +106,27 @@ async function getAllFiles(dir: string, baseDir: string, ignorePatterns: string[
   }
 }
 
-import * as pathModule from 'path';
+
 
 function extractDirectories(
   files: string[], 
-  maxDepth: number = 5
+  maxDepth = 5
 ): Set<string> {
   const directories = new Set<string>();
+  for (const file of files) {
   
-  files.forEach(file => {
     const dirPath = path.posix.dirname(file);
-    if (dirPath === '.') return;
+    if (dirPath === '.') return directories;
     
     const parts = dirPath.split('/');
     let currentPath = '';
     
     for (let i = 0; i < Math.min(parts.length, maxDepth); i++) {
       if (parts[i] === '') continue;
-      currentPath += parts[i] + '/';
+      currentPath += `${parts[i]}/`;
       directories.add(currentPath);
     }
-  });
+  }
   
   return directories;
 }
@@ -134,7 +134,7 @@ function extractDirectories(
 function generateTypeScriptCode(
   files: string[], 
   directory: string,
-  basePath: string = '/',
+  basePath= '/',
   options: StaticAssetsPluginOptions = {}
 ): string {
   const {
@@ -344,15 +344,13 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
       
       // Look for staticAssets calls
       const staticAssetsRegex = /staticAssets\(['"]([^'"]+)['"]\)/g;
-      let match;
+      const match = staticAssetsRegex.exec(code);
       
-      while ((match = staticAssetsRegex.exec(code)) !== null) {
+      while (match !== null) {
         const assetPath = match[1];
         if (!currentFiles.has(assetPath)) {
           throw new Error(
-            `\n\nStatic asset: ${chalk.yellowBright(assetPath)} \n (referenced in ${chalk.yellow(id)})\n does not exist in ${chalk.yellow(directory)} directory.\n\n` +
-            `Make sure the asset exists and is referenced correctly in your code.\n\n` +
-            ``
+            `\n\nStatic asset: ${chalk.yellowBright(assetPath)} \n (referenced in ${chalk.yellow(id)})\n does not exist in ${chalk.yellow(directory)} directory.\n\nMake sure the asset exists and is referenced correctly in your code.\n\n`
           );
         }
       }
@@ -363,9 +361,9 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
       }
 
       const staticAssetsDirRegex = /staticAssetsFromDir\(['"]([^'"]+)['"]\)/g;
-      let dirMatch;
+      const dirMatch = staticAssetsDirRegex.exec(code);
 
-      while ((dirMatch = staticAssetsDirRegex.exec(code)) !== null) {
+      while (dirMatch !== null) {
         const dirPath = dirMatch[1];
         const normalizedPath = path.posix.normalize(dirPath);
         const dirPathWithSlash = normalizedPath.endsWith('/') ? normalizedPath : `${normalizedPath}/`;
@@ -375,8 +373,7 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
         );
 
         if (!hasAssetsInDir && !options.allowEmptyDirectories) {
-          const message = `\n\nStatic asset directory: ${chalk.yellowBright(dirPathWithSlash)} \n (referenced in ${chalk.yellow(id)})\n does not exist or is empty in ${chalk.yellow(directory)} directory.\n\n` +
-            `Make sure the directory exists and contains assets.\n\n`;
+          const message = `\n\nStatic asset directory: ${chalk.yellowBright(dirPathWithSlash)} \n (referenced in ${chalk.yellow(id)})\n does not exist or is empty in ${chalk.yellow(directory)} directory.\n\nMake sure the directory exists and contains assets.\n\n`;
 
           throw new Error(message);
         }
