@@ -2,7 +2,7 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
-import { staticAssets , type FilesInFolder} from "./static-assets"
+import { type StaticAssetPath, staticAssets , type FilesInFolder} from "./static-assets"
 
 type  Icons = FilesInFolder<'icons/sun/'>;
 
@@ -11,7 +11,6 @@ type Suns = {
   name: string
 
 }
-
 const suns: Suns[] = [
   {
     icon: "icons/sun/line-md--sunny.svg",
@@ -31,6 +30,8 @@ const suns: Suns[] = [
   }
 
 ]
+// Type-safe variables
+const assetPath: StaticAssetPath = 'icons/sun/line-md--sunny.svg';
 
 
 function App() {
@@ -71,6 +72,7 @@ function App() {
       <p className="read-the-docs">
         Click on the Vite and React logos to learn more
       </p>
+      <img src={staticAssets(assetPath)} className="logo" alt="logo" />
     </>
   )
 }

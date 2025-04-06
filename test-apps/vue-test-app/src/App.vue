@@ -1,14 +1,14 @@
 <script setup lang="ts">
 
-import { staticAssets, type FilesInFolder} from "./static-assets"
+import { staticAssets, type FilesInFolder, type StaticAssetPath} from "./static-assets"
 
 type  Icons = FilesInFolder<'icons/sun/'>;
 
 type Suns = {
   icon: Icons,
   name: string
-
 }
+const assetPath: StaticAssetPath = 'icons/sun/line-md--sunny.svg';
 
 const suns: Suns[] = [
   {
@@ -50,6 +50,7 @@ const suns: Suns[] = [
       <span>{{ sun.name }}</span>
     </div>
   </div>
+  <img :src="staticAssets(assetPath)" class="logo" alt="logo" />
    
 </template>
 
