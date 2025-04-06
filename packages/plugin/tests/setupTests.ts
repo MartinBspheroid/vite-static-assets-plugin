@@ -3,7 +3,7 @@ import * as fs from 'fs';
 import * as path from 'path';
 
 afterAll(() => {
-  const outputFile = path.resolve(process.cwd(), 'src/static-assets.ts');
+  const outputFile = path.resolve(process.cwd(), '../../src/static-assets.ts');
   if (fs.existsSync(outputFile)) {
     try {
       fs.unlinkSync(outputFile);

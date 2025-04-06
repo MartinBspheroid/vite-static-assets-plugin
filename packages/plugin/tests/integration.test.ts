@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import staticAssetsPlugin from '../src/index';
 import { createServer, build } from 'vite';
-import * as fs from 'fs';
-import * as path from 'path';
+
 
 // Mock Vite functions
 vi.mock('vite', () => ({

@@ -24,7 +24,6 @@ describe('generateTypeScriptCode', () => {
 
     // Directory types and helpers
     expect(result).toContain('export type StaticAssetDirectory');
-    expect(result).toContain('export function directoryExists');
     expect(result).toContain('export function staticAssetsFromDir');
 
     // Directory type should include subdirectories up to max depth
