@@ -41,6 +41,8 @@ jobs:
       - name: Run Tests
         run: cd packages/plugin && bun test:coverage
 
+      - name: copy readme to dist
+        run: cp README.md packages/plugin/README.md
       - name: Publish Package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
