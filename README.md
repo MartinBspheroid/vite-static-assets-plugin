@@ -3,48 +3,45 @@
 </p>
 
 # Vite Static Assets Plugin
- <span style="text-align: center;">
-    <a href="https://www.npmjs.com/package/vite-static-assets-plugin" target="_blank">
-      <img src="https://img.shields.io/npm/v/vite-static-assets-plugin?color=blue&label=npm&style=flat-square" alt="npm version" />
-    </a>
-    <a href="https://www.npmjs.com/package/vite-static-assets-plugin" target="_blank">
-      <img src="https://img.shields.io/npm/dm/vite-static-assets-plugin?color=blue&label=npm%20downloads&style=flat-square" alt="npm downloads" />
-    </a>
-    <a href="https://github.com/MartinBspheroid/vite-static-assets-plugin/blob/main/LICENSE" target="_blank">
-      <img src="https://img.shields.io/github/license/MartinBspheroid/vite-static-assets-plugin?color=blue&label=license&style=flat-square" alt="license" />
-    </a>
-  </span>
 
+<span style="text-align: center;">
+  <a href="https://www.npmjs.com/package/vite-static-assets-plugin" target="_blank">
+    <img src="https://img.shields.io/npm/v/vite-static-assets-plugin?color=blue&label=npm&style=flat-square" alt="npm version" />
+  </a>
+  <a href="https://www.npmjs.com/package/vite-static-assets-plugin" target="_blank">
+    <img src="https://img.shields.io/npm/dm/vite-static-assets-plugin?color=blue&label=npm%20downloads&style=flat-square" alt="npm downloads" />
+  </a>
+  <a href="https://github.com/MartinBspheroid/vite-static-assets-plugin/blob/main/LICENSE" target="_blank">
+    <img src="https://img.shields.io/github/license/MartinBspheroid/vite-static-assets-plugin?color=blue&label=license&style=flat-square" alt="license" />
+  </a>
+</span>
 
-
-A Vite plugin that automatically scans a specified directory for static assets, generates a TypeScript module with a type-safe union of available asset paths, and provides a helper function to get the URL for an asset. It also validates asset references in your code during build time, ensuring that you never reference a non-existent asset.
-
-
+A Vite plugin that **automatically scans your static assets directory**, generates a **type-safe TypeScript module** with all asset paths, **directory-aware types**, and a helper function to get asset URLs. It validates asset references during build and updates live during development.
 
 <img width="1048" alt="Screenshot 2025-02-25 at 12 56 29" src="https://github.com/user-attachments/assets/2750833a-d816-46c8-80c6-c636fdd3dd84" />
 
+---
 
-  
 ## Features
 
-- **Automatic Asset Scanning:** Recursively scans a directory (default: `public`) for static assets.
-- **Type-Safe API:** Generates a TypeScript module with a union type (`StaticAssetPath`) representing all valid asset paths.
-- **Directory Grouping & Directory Helper Functions:** Generates directory path types, provides `directoryExists()` and `staticAssetsFromDir()` helpers to work with groups of assets in subdirectories, with configurable depth and validation.
-- **Helper Function:** Provides a `staticAssets()` function to retrieve the URL for a static asset.
-- **Customizable:** Supports custom directories, output file paths, and glob-based ignore patterns.
-- **Live Updates in Development:** Watches the asset directory and updates the generated file on changes.
-- **Validation:** During code transformation, it checks calls to `staticAssets()` to ensure the referenced asset exists.
+- 🚀 **Automatic Recursive Scanning:** Scans a directory (default: `public`) for all static assets.
+- 🛡 **Type-Safe API:** Generates a union type `StaticAssetPath` of all valid asset paths.
+- 📁 **Directory-Aware Types:** Generates `StaticAssetDirectory` and a powerful `FilesInFolder<Dir>` generic for directory-specific asset typing.
+- 🔗 **Helper Function:** Provides `staticAssets()` to get the URL for an asset, with runtime validation.
+- 🛠 **Highly Configurable:** Customize directory, output file, ignore patterns, debounce, directory depth, empty directory handling, leading slash, and more.
+- 🔄 **Live Updates:** Watches the directory in development mode and regenerates types on changes.
+- 🧭 **Validation:** Validates asset references and directory references during build, with detailed error messages.
+- ⚡ **Fast:** Minimal overhead, optimized for large projects.
 
+---
 
-----
-  
-   <p style="text-align: center; display: flex;  justify-content: center; align-items: center; gap: 10px;">
-   Built with <a href="https://bun.sh"><img src="https://bun.sh/logo.svg" alt="Bun Logo" height="16" /> Bun</a> – the ultra-fast JavaScript runtime & toolkit</p>
+<p style="text-align: center; display: flex;  justify-content: center; align-items: center; gap: 10px;">
+Built with <a href="https://bun.sh"><img src="https://bun.sh/logo.svg" alt="Bun Logo" height="16" /> Bun</a> – the ultra-fast JavaScript runtime & toolkit
+</p>
 
+---
 
 ## Installation
-
-Install the plugin as a development dependency using npm, yarn, bun, or pnpm:
 
 ```bash
 # npm
@@ -60,11 +57,13 @@ bun add -d vite-static-assets-plugin
 pnpm add -D vite-static-assets-plugin
 ```
 
+---
+
 ## Setup and Configuration
 
-Add the plugin to your Vite configuration file:
+Add the plugin to your Vite config:
 
-### vite.config.ts (TypeScript)
+### vite.config.ts
 
 ```typescript
 import { defineConfig } from 'vite';
@@ -74,75 +73,97 @@ export default defineConfig({
   plugins: [
     staticAssetsPlugin({
       // Optional configuration (defaults shown):
-      directory: 'public',          // Directory to scan for static assets
-      outputFile: 'src/static-assets.ts',  // Where to generate the TypeScript module
-      ignore: ['.DS_Store'],  // Files/patterns to ignore
-      debounce: 200,  // Debounce time for file watcher events (ms)
+      directory: 'public',
+      outputFile: 'src/static-assets.ts',
+      ignore: ['.DS_Store'],
+      debounce: 200,
+      enableDirectoryTypes: true,
+      maxDirectoryDepth: 5,
+      allowEmptyDirectories: false,
+      addLeadingSlash: true,
     })
   ]
 });
 ```
 
-### vite.config.js (JavaScript)
-
-```javascript
-import { defineConfig } from 'vite';
-import staticAssetsPlugin from 'vite-static-assets-plugin';
-
-export default defineConfig({
-  plugins: [
-    staticAssetsPlugin({
-      // Same options as above
-    })
-  ]
-});
-```
+---
 
 ## Generated TypeScript Module
 
-Once configured, the plugin will automatically generate a TypeScript module at the specified location (default: `src/static-assets.ts`). This module includes:
+The plugin generates a TypeScript file (default: `src/static-assets.ts`) containing:
 
-* **StaticAssetPath**: A union type containing all your asset paths as string literals
-* **staticAssets**: A function that returns the correct URL for the asset
-* **Built-in validation**: Runtime checks to ensure the asset exists
+### `StaticAssetPath`
 
-Example of generated code:
+A union of all asset paths:
 
 ```typescript
-// This file is auto-generated. Do not edit it manually.
-
-export type StaticAssetPath = 
+export type StaticAssetPath =
   'images/logo.svg' |
   'images/banner.jpg' |
   'fonts/roboto.woff2';
-
-const assets = new Set<string>([
-  'images/logo.svg',
-  'images/banner.jpg',
-  'fonts/roboto.woff2'
-]);
-const BASE_PATH = "/";
-
-export function staticAssets(path: StaticAssetPath): string {
-  if (!assets.has(path)) {
-    throw new Error(`Static asset "${path}" does not exist in public directory`);
-  }
-  return BASE_PATH + path;
-}
 ```
+
+### `StaticAssetDirectory`
+
+A union of all directories containing assets, including `'.'` for the root:
+
+```typescript
+export type StaticAssetDirectory =
+  '.' |
+  'fonts/' |
+  'images/' ;
+```
+
+### `FilesInFolder<Dir>`
+
+A generic type representing **only the files directly inside** a directory:
+
+```typescript
+// Example: all files directly inside 'images/' (not nested)
+type ImageFiles = FilesInFolder<'images/'>;
+// 'logo.svg' | 'banner.jpg'
+```
+
+### `staticAssets(path)`
+
+A function that returns the URL for an asset, with validation:
+
+```typescript
+export function staticAssets(path: StaticAssetPath): string;
+```
+
+If you pass an invalid path, it throws an error at runtime and TypeScript will catch it at compile time.
+
+---
 
 ## Usage
 
-Import the `staticAssets` function from the generated file and use it to reference your static assets:
+Import the generated function and types:
 
 ```typescript
-import { staticAssets } from './static-assets';
+import { staticAssets, StaticAssetPath, StaticAssetDirectory, FilesInFolder } from './static-assets';
 
-// Use it directly inline wherever asset paths are needed
+// Use the helper function
+const logoUrl = staticAssets('images/logo.svg');
+
+// Type-safe variables
+const assetPath: StaticAssetPath = 'fonts/roboto.woff2';
+
+const dir: StaticAssetDirectory = 'images/';
+
+// Files directly inside 'images/'
+type ImageFiles = FilesInFolder<'images/'>;
+```
+
+Use it in your components:
+
+```tsx
 <img src={staticAssets('images/logo.svg')} alt="Logo" />
 ```
 
-### Framework Agnostic
+---
+
+## Framework Agnostic
 
 <p align="center">
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/react/react-original.svg" alt="React" title="React" height="32" />
@@ -160,233 +181,84 @@ import { staticAssets } from './static-assets';
   <img src="https://cdn.jsdelivr.net/gh/devicons/devicon/icons/typescript/typescript-original.svg" alt="TypeScript" title="TypeScript" height="32" />
 </p>
 
-This plugin works with any frontend framework that uses Vite. Here are some examples:
+Works with **any** frontend framework that uses Vite: React, Vue, Svelte, Angular, Solid, Lit, and more.
 
-#### React / Preact
-
-```tsx
-// Component example
-function Logo() {
-  return <img src={staticAssets('images/logo.svg')} alt="Logo" />;
-}
-
-// JSX inline usage
-<div style={{ backgroundImage: `url(${staticAssets('images/background.jpg')})` }}>
-  <img src={staticAssets('images/icon.png')} />
-</div>
-```
-
-#### Vue
-
-```vue
-<template>
-  <!-- Direct usage in templates -->
-  <img :src="staticAssets('images/logo.svg')" alt="Logo" />
-  
-  <!-- With styles -->
-  <div :style="{ backgroundImage: `url(${staticAssets('images/background.jpg')})` }">
-    Content
-  </div>
-</template>
-
-<script setup lang="ts">
-import { staticAssets } from './static-assets';
-</script>
-```
-
-#### Svelte
-
-```svelte
-<script lang="ts">
-  import { staticAssets } from './static-assets';
-</script>
-
-<!-- Direct inline usage -->
-<img src={staticAssets('images/logo.svg')} alt="Logo" />
-
-<!-- With style binding -->
-<div style="background-image: url({staticAssets('images/background.jpg')});">
-  Content
-</div>
-```
-
-#### Plain TypeScript
-
-```typescript
-import { staticAssets } from './static-assets';
-
-// Create elements with correct asset paths
-const img = document.createElement('img');
-img.src = staticAssets('images/logo.svg');
-
-// Use with template literals for CSS
-const div = document.createElement('div');
-div.style.backgroundImage = `url(${staticAssets('images/background.jpg')})`;
-```
-
-### Benefits of Using This Plugin
-
-1. **Framework Agnostic**: Works with any frontend framework that uses Vite (React, Vue, Svelte, Angular, Solid, Lit, etc.)
-2. **Type Safety**: TypeScript will show errors if you reference a non-existent asset
-3. **Auto-Completion**: Your editor will suggest available assets as you type
-4. **Build-Time Validation**: The build will fail if you reference missing assets
-5. **Base Path Handling**: Works correctly with Vite's `base` config for subdirectory deployments
-6. **Live Updates**: The generated file updates automatically as you add or remove assets
-
-## How It Works
-
-1. **Asset Scanning:** On build start, the plugin scans the specified directory recursively (ignoring files based on provided glob patterns) and collects all asset paths relative to the directory.
-    
-2. **TypeScript Module Generation:** It generates a TypeScript file that:
-    
-    * Exports a union type StaticAssetPath representing all asset paths.
-        
-    * Exports a helper function staticAssets() that returns the URL for an asset, ensuring it exists.
-        
-3. **Development Watcher:** In non-production environments, the plugin sets up a file system watcher on the asset directory. Any changes update the generated module automatically.
-    
-4. **Asset Reference Validation:** During the transformation of your source files (JS/TS, JSX/TSX, Vue, Svelte, etc.), the plugin scans for calls to staticAssets(). If a referenced asset is missing, it throws an error with detailed feedback.
-    
+---
 
 ## Plugin Options
 
-You can customize the plugin behavior by passing an options object to the plugin:
+| Option                   | Type            | Default                   | Description                                                                                      |
+|--------------------------|-----------------|---------------------------|--------------------------------------------------------------------------------------------------|
+| `directory`              | `string`        | `'public'`                | Directory to scan for static assets                                                              |
+| `outputFile`             | `string`        | `'src/static-assets.ts'`  | Path to generate the TypeScript module                                                           |
+| `ignore`                 | `string[]`      | `['.DS_Store']`           | Glob patterns to ignore                                                                          |
+| `debounce`               | `number`        | `200`                     | Debounce time (ms) for file watcher events                                                       |
+| `enableDirectoryTypes`   | `boolean`       | `true`                    | Generate directory-aware types (`StaticAssetDirectory`, `FilesInFolder`)                         |
+| `maxDirectoryDepth`      | `number`        | `5`                       | Maximum directory nesting level for directory type generation                                    |
+| `allowEmptyDirectories`  | `boolean`       | `false`                   | Allow referencing empty directories in validation                                                |
+| `addLeadingSlash`        | `boolean`       | `true`                    | Add a leading slash to generated asset URLs                                                      |
 
-* **directory?: string** - The directory to scan for static assets. Defaults to `public`.
-    
-* **outputFile?: string** - The file path where the generated TypeScript module will be written. Defaults to `src/static-assets.ts`.
-    
-* **ignore?: string[]** - An array of glob patterns specifying files or directories to ignore during the asset scan. Default: `['.DS_Store']`.
+---
 
-* **debounce?: number** - Debounce time in milliseconds for file system events. Default: `200`.
+## How It Works
 
-## Working with Asset Directories
+1. **Scans** the specified directory recursively, ignoring patterns.
+2. **Generates** a TypeScript file with:
+   - `StaticAssetPath` union of all asset paths.
+   - `StaticAssetDirectory` union of directories.
+   - `FilesInFolder<Dir>` generic.
+   - `staticAssets()` function.
+3. **Watches** the directory in development mode, regenerating on changes.
+4. **Validates** asset references and directory references during build.
+5. **Throws errors** with detailed info if assets or directories are missing.
 
-This plugin can also help you work with groups of related assets in specific directories:
-
-```typescript
-import { staticAssetsFromDir, directoryExists } from './static-assets';
-
-// Check if a directory exists first (optional)
-if (directoryExists('icons/partners/')) {
-  // Get all partner icons
-  const partnerIcons = staticAssetsFromDir('icons/partners/');
-  
-  // Use in a Svelte component
-  <div class="partner-logos">
-    {#each partnerIcons as icon}
-      <img src={icon} alt="Partner logo" />
-    {/each}
-  </div>
-}
-```
-
-### Configuration Options
-
-You can configure directory-related features through the plugin options:
-
-```typescript
-staticAssetsPlugin({
-  // Standard options
-  directory: 'public',
-  outputFile: 'src/static-assets.ts',
-  ignore: ['**/*.tmp'],
-  
-  // Directory feature options
-  enableDirectoryTypes: true,        // Enable/disable directory type generation
-  maxDirectoryDepth: 5,              // Maximum directory nesting level for type generation
-  allowEmptyDirectories: false,      // Whether to allow referencing empty directories
-  addLeadingSlash: true,             // Whether asset URLs should have a leading slash
-})
-```
-
-These options help you control the behavior of the directory feature and optimize performance for larger projects.
+---
 
 ## Error Handling
 
-If your code references an asset using staticAssets('asset-path') that does not exist in the scanned directory, the plugin will throw an error during the build or serve phase. This error message will include the path of the missing asset, the file where it was referenced, and guidance to correct the issue.
+- If you reference a missing asset in `staticAssets()`, the plugin throws a build-time error with details (even if you're skipping TS typechecking before build).
+- If you reference a directory (via `FilesInFolder` or in code) that is empty or missing, it throws an error **unless** `allowEmptyDirectories: true`.
+- Errors include the file path, missing asset/directory, and suggestions.
 
 <img width="1048" alt="Screenshot 2025-02-25 at 12 56 50" src="https://github.com/user-attachments/assets/aad8cd9e-b5db-46b8-9ef9-73b031795482" />
 
+- Please note that this message is shown in case you **actually skip TS typechecking before build**. In case you're not typechecking before build (which is recommended), the error will be thrown at build time and you'll see the full error message in the terminal.
+---
+
 ## TypeScript Integration
 
-This plugin is designed to work seamlessly with TypeScript. Here are some tips to get the best experience:
+- The generated file is **TypeScript-ready** (as long as you set `outputFile`  in your `vite.config.ts` to folder that is visible to your project).
+- Enjoy **auto-completion**, **type checking**, and **refactoring support** for your static assets.
 
-### Configure tsconfig.json
-
-Ensure the generated module is included in your TypeScript configuration:
-
-```json
-{
-  "include": [
-    "src/**/*.ts",
-    "src/**/*.tsx",
-    "src/static-assets.ts"  // Include the generated file
-  ]
-}
-```
-
-### Auto-Completion and Type Checking
-
-The plugin generates a union type of all your asset paths, giving you these benefits:
-
-- **Auto-completion**: Your editor will suggest available asset paths
-- **Type checking**: TypeScript will show errors if you reference a non-existent asset
-- **Refactoring support**: If you rename an asset, TypeScript will flag all references to the old name
-
-
-### Troubleshooting
-
-If you see TypeScript errors related to the plugin in your Vite config:
-
-```typescript
-// Type assertion is a quick fix
-import staticAssetsPlugin from 'vite-static-assets-plugin';
-export default defineConfig({
-  plugins: [staticAssetsPlugin()]
-});
-```
-
-Or for a better typed solution:
-
-```typescript
-import staticAssetsPlugin from 'vite-static-assets-plugin';
-import type { PluginOption } from 'vite';
-
-export default defineConfig({
-  plugins: [staticAssetsPlugin() as PluginOption]
-});
-```
+---
 
 ## Development
 
 ### Testing
 
-This project uses Vitest for testing. The test suite includes unit tests, integration tests, and functional tests:
+This project uses **Vitest**:
 
 ```bash
 # Run all tests
 npm test
 
-# Run tests in watch mode (for development)
+# Watch mode
 npm run test:watch
 
-# Run tests with coverage report
+# Coverage
 npm run test:coverage
 ```
 
-Test files are located in the `tests/` directory:
+Tests are in `packages/plugin/tests/` and cover core functions and plugin behavior.
 
-- **Unit Tests**: Test individual functions (e.g., `getAllFiles`, `generateTypeScriptCode`)
-- **Integration Tests**: Test interaction with Vite
-- **Functional Tests**: Test real file system operations
-
-When contributing, please ensure that your changes pass all existing tests and add new tests for any new functionality.
+---
 
 ## License
 
-This project is licensed under the MIT License.
+MIT
+
+---
 
 ## Contributing
 
-Contributions, issues, and feature requests are welcome! Feel free to check the issues page.
+Contributions, issues, and feature requests are welcome! Please open an issue or pull request.
