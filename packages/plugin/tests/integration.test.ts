@@ -1,8 +1,7 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
 import staticAssetsPlugin from '../src/index';
 import { createServer, build } from 'vite';
-import * as fs from 'fs';
-import * as path from 'path';
+
 
 // Mock Vite functions
 vi.mock('vite', () => ({
@@ -34,7 +33,7 @@ vi.mock('fs', async () => {
 vi.mock('path', () => ({
   resolve: vi.fn((...args) => args.join('/')),
   join: vi.fn((...args) => args.join('/')),
-  relative: vi.fn((from, to) => to.replace(from + '/', '')),
+  relative: vi.fn((from, to) => to.replace(`${from}/`, '')),
   dirname: vi.fn(path => path.split('/').slice(0, -1).join('/'))
 }));
 

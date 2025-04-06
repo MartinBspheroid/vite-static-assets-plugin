@@ -1,6 +1,5 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest';
-import * as fs from 'fs';
-import * as path from 'path';
+import * as fs from 'node:fs';
 import { getAllFiles } from '../src/index';
 
 // Mock minimatch
@@ -26,7 +25,7 @@ vi.mock('fs', () => ({
 
 vi.mock('path', () => ({
   join: vi.fn((...args) => args.join('/')),
-  relative: vi.fn((from, to) => to.replace(from + '/', '')),
+  relative: vi.fn((from, to) => to.replace(`${from}/`, '')),
   resolve: vi.fn((...args) => args.join('/'))
 }));
 
@@ -51,7 +50,7 @@ describe('getAllFiles', () => {
     };
 
     // Mock readdir to return our mock structure
-    (vi.mocked(fs.promises.readdir) as any).mockImplementation((dir: any) => {
+    (vi.mocked(fs.promises.readdir) as any).mockImplementation((dir: string) => {
       const dirPath = dir.toString();
       return Promise.resolve(mockFiles[dirPath] || []);
     });
