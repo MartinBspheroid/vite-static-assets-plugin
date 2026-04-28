@@ -1,9 +1,3 @@
-# Proposed contents for .github/workflows/test.yml
-#
-# This file is staged at the repo root because the bot's gh OAuth token
-# lacks the `workflow` scope and cannot push to .github/workflows/.
-# Deploy via the GitHub web UI or with a token that has `workflow` scope.
-
 name: Test
 
 on:
