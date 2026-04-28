@@ -1,0 +1,67 @@
+# Proposed update for .github/workflows/npm-publish.yml
+#
+# Bumps Node to 20.19+ (Vite 7/8 floor), runs unit + unit-extended + harness
+# before publish. The bot's OAuth token lacks `workflow` scope and cannot
+# update files under .github/workflows/, so this lives at the repo root.
+# Deploy via the GitHub web UI or with a token that has `workflow` scope.
+
+name: Publish Package
+
+on:
+  push:
+    tags:
+      - 'v*.*.*'
+
+jobs:
+  publish:
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Node.js
+        uses: actions/setup-node@v4
+        with:
+          # Vite 7/8 require Node ^20.19 || ^22.12 || >=24
+          node-version: '24'
+          registry-url: 'https://registry.npmjs.org/'
+
+      - name: Cache dependencies
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.bun/install/cache
+            node_modules
+            test-apps/*/node_modules
+          key: ${{ runner.os }}-bun-publish-${{ hashFiles('bun.lock') }}
+          restore-keys: |
+            ${{ runner.os }}-bun-publish-
+
+      - name: Setup Bun
+        uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+
+      - name: Install Dependencies
+        run: bun install
+
+      - name: Build
+        run: cd packages/plugin && bun run build
+
+      - name: Unit tests
+        run: cd packages/plugin && bun run test
+
+      - name: Unit-extended tests (Wave 1+)
+        run: cd packages/plugin && bun run test:unit-extended
+
+      - name: Cross-framework harness
+        run: bun run test:harness
+
+      - name: Copy README to plugin package
+        run: cp README.md packages/plugin/README.md
+
+      - name: Publish Package
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+        run: cd packages/plugin && bun run npm publish

@@ -1,3 +1,9 @@
+# Proposed contents for .github/workflows/test.yml
+#
+# This file is staged at the repo root because the bot's gh OAuth token
+# lacks the `workflow` scope and cannot push to .github/workflows/.
+# Deploy via the GitHub web UI or with a token that has `workflow` scope.
+
 name: Test
 
 on:
@@ -27,6 +33,29 @@ jobs:
       - run: cd packages/plugin && bun run build
       - run: cd packages/plugin && bun run typecheck
       - run: cd packages/plugin && bun run test
+
+  unit-extended:
+    needs: unit
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        node-version: [20.19, 22.12, 24]
+    steps:
+      - uses: actions/checkout@v4
+      - uses: oven-sh/setup-bun@v1
+        with:
+          bun-version: latest
+      - uses: actions/setup-node@v4
+        with:
+          node-version: ${{ matrix.node-version }}
+      - uses: actions/cache@v4
+        with:
+          path: ~/.bun/install/cache
+          key: ${{ runner.os }}-bun-${{ matrix.node-version }}-${{ hashFiles('bun.lock') }}
+      - run: bun install
+      - run: cd packages/plugin && bun run build
+      - run: cd packages/plugin && bun run test:unit-extended
 
   harness:
     needs: unit

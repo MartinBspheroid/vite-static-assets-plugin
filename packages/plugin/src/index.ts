@@ -57,28 +57,35 @@ interface StaticAssetsPluginOptions {
 /**
  * Asynchronously scan a directory and return all file paths (using Vite's normalizePath).
  *
- * Guards against symlink loops by tracking real paths of visited directories. The
- * `_visited` parameter is internal — callers should not pass it.
+ * Guards against symlink loops by tracking the real paths of *ancestors on the
+ * current recursion path*. Two sibling symlinks pointing at the same target
+ * (e.g. `public/brand-a -> shared/`, `public/brand-b -> shared/`) are still
+ * walked independently — only a cycle (entering an ancestor) is rejected.
+ *
+ * The `_ancestors` parameter is internal — callers should not pass it.
  */
 async function getAllFiles(
   dir: string,
   baseDir: string,
   isIgnored: (path: string) => boolean,
-  _visited?: Set<string>
+  _ancestors?: ReadonlySet<string>
 ): Promise<string[]> {
-  const visited = _visited ?? new Set<string>();
-  // Resolve the real path so symlink loops collapse to a single entry.
+  const ancestors = _ancestors ?? new Set<string>();
   let realDir: string;
   try {
     realDir = await fs.promises.realpath(dir);
   } catch {
     realDir = dir;
   }
-  if (visited.has(realDir)) {
+  if (ancestors.has(realDir)) {
     console.warn(`${styleText('yellow', '⚠')} Symlink loop detected at ${dir} (real path ${realDir}); skipping.`);
     return [];
   }
-  visited.add(realDir);
+  // Each child gets a fresh ancestor set that includes this directory. Siblings
+  // do NOT share the set, so legitimate aliases pointing at the same target
+  // are walked separately.
+  const childAncestors = new Set(ancestors);
+  childAncestors.add(realDir);
 
   try {
     const items = await fs.promises.readdir(dir);
@@ -95,7 +102,7 @@ async function getAllFiles(
         const stat = await fs.promises.stat(fullPath);
 
         if (stat.isDirectory()) {
-          return getAllFiles(fullPath, baseDir, isIgnored, visited);
+          return getAllFiles(fullPath, baseDir, isIgnored, childAncestors);
         }
         return [relativePath];
       } catch (err) {
@@ -377,23 +384,31 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
 
     async buildStart() {
       try {
-        // Check if source directory exists
+        // Stat the source. ENOENT is a soft warning (some workflows scan a
+        // directory that doesn't exist yet); any other access error or a
+        // non-directory target is a hard failure — silently emitting empty
+        // types would hide the misconfiguration.
+        let sourceExists = false;
         try {
-          await fs.promises.access(directory);
+          const stat = await fs.promises.stat(directory);
+          if (!stat.isDirectory()) {
+            throw new Error(
+              `[vite-plugin-static-assets] 'directory' option "${options.directory || 'public'}" is not a directory.`,
+            );
+          }
+          sourceExists = true;
         } catch (e) {
           const error = e as NodeJS.ErrnoException;
           if (error.code === 'ENOENT') {
             warn(`${styleText('yellow', '⚠')} [vite-plugin-static-assets] Source directory "${options.directory || 'public'}" not found. Generating empty types.`);
+            currentFiles = new Set();
           } else {
-            throw new Error(`[vite-plugin-static-assets] Error accessing source directory "${options.directory || 'public'}": ${e instanceof Error ? e.message : e}`);
+            throw e;
           }
-          currentFiles = new Set();
         }
 
         // Scan files
-        const files = fs.existsSync(directory)
-          ? await getAllFiles(directory, directory, isIgnored)
-          : [];
+        const files = sourceExists ? await getAllFiles(directory, directory, isIgnored) : [];
 
         currentFiles = new Set(files);
 

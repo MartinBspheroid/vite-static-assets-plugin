@@ -99,13 +99,21 @@ describe('options.directory', () => {
     warn.mockRestore()
   })
 
-  it('A6. directory pointing at a file scans empty without crash', async () => {
+  it('A6. directory pointing at a file fails fast with a clear error', async () => {
     fs.writeFileSync('not-a-dir.txt', 'x')
     const dts = path.join(tmpRoot, 'out.d.ts')
     const plugin = staticAssetsPlugin({ directory: 'not-a-dir.txt', typesOutputFile: dts })
-    await runBuildStart(plugin)
-    const content = fs.readFileSync(dts, 'utf8')
-    expect(content).toContain('never')
+    // Pointing the plugin at a regular file is an unambiguous misconfig — the
+    // plugin should throw, not silently emit a never-typed dts that masks
+    // the problem.
+    const err = vi.spyOn(console, 'error').mockImplementation(() => {})
+    try {
+      await expect(runBuildStart(plugin)).rejects.toThrow(/'directory' option .* is not a directory/)
+    } finally {
+      err.mockRestore()
+    }
+    // No dts should have been written either.
+    expect(fs.existsSync(dts)).toBe(false)
   })
 })
 

@@ -101,6 +101,28 @@ describe('getAllFiles', () => {
     const files = await getAllFiles(linkDir, linkDir, noop);
     expect(files).toContain('data.txt');
   });
+
+  it('should walk sibling symlinks pointing at the same target independently', async () => {
+    // P1 regression: a global visited-realpath Set caused brand-b/ to be
+    // skipped after brand-a/ was scanned. Track ancestors per recursion frame
+    // instead so siblings emit independently.
+    const root = path.join(testDir, 'multi-link');
+    const shared = path.join(root, 'shared');
+    fs.mkdirSync(shared, { recursive: true });
+    fs.writeFileSync(path.join(shared, 'logo.svg'), '<svg/>');
+
+    fs.mkdirSync(path.join(root, 'public'));
+    fs.symlinkSync(shared, path.join(root, 'public/brand-a'));
+    fs.symlinkSync(shared, path.join(root, 'public/brand-b'));
+
+    const isIgnored = picomatch(['shared/**'], { dot: true });
+    const files = await getAllFiles(path.join(root, 'public'), path.join(root, 'public'), isIgnored);
+
+    // Both aliases must surface their virtual content. The shared/ tree is
+    // ignored explicitly so it doesn't pollute the result.
+    expect(files).toContain('brand-a/logo.svg');
+    expect(files).toContain('brand-b/logo.svg');
+  });
 });
 
 describe('extractDirectories', () => {
