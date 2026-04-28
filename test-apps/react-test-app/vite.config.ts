@@ -1,15 +1,11 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
-import viteStaticAssetsPlugin from 'vite-static-assets-plugin';
+import viteStaticAssetsPlugin from 'vite-static-assets-plugin'
+
+const base = process.env.VITE_BASE ?? '/'
 
 // https://vite.dev/config/
 export default defineConfig({
-  plugins: [react(), viteStaticAssetsPlugin(
-    {
-      directory: 'public',
-      ignore: ['**/.DS_Store'],
-      maxDirectoryDepth: 5,
-      allowEmptyDirectories: false,
-    }
-  )],
+  base,
+  plugins: [react(), viteStaticAssetsPlugin({ directory: 'public' })],
 })

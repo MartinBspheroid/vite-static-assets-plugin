@@ -110,6 +110,13 @@ bun add -d vite-static-assets-plugin
 pnpm add -D vite-static-assets-plugin
 ```
 
+**Requirements:**
+- Vite 7 or 8 (Vite 6 dropped in plugin v3)
+- Node `^20.19.0 || ^22.12.0 || >=24.0.0`
+- TypeScript ≥ 5
+
+Upgrading from v2? See [MIGRATION.md](./MIGRATION.md).
+
 ---
 
 ## Setup and Configuration
