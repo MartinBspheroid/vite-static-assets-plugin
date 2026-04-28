@@ -7,11 +7,9 @@ export default defineConfig({
   plugins: [react(), viteStaticAssetsPlugin(
     {
       directory: 'public',
-      outputFile: 'src/static-assets.ts',
       ignore: ['**/.DS_Store'],
       maxDirectoryDepth: 5,
       allowEmptyDirectories: false,
-      addLeadingSlash: true
     }
   )],
 })

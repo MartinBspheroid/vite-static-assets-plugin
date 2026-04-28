@@ -3,13 +3,13 @@ import * as fs from 'node:fs';
 import * as path from 'node:path';
 
 afterAll(() => {
-  const outputFile = path.resolve(process.cwd(), '../../src/static-assets.ts');
-  if (fs.existsSync(outputFile)) {
+  // Clean up any generated .d.ts files from tests
+  const dtsFile = path.resolve(process.cwd(), '../../src/static-assets.d.ts');
+  if (fs.existsSync(dtsFile)) {
     try {
-      fs.unlinkSync(outputFile);
-      console.log('Cleaned up generated static-assets.ts after tests.');
-    } catch (err) {
-      console.warn('Failed to delete static-assets.ts after tests:', err);
+      fs.unlinkSync(dtsFile);
+    } catch {
+      // Ignore cleanup errors
     }
   }
 });

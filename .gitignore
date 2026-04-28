@@ -175,4 +175,4 @@ dist
 .DS_Store
 
 # Generated files
-**/static-assets.ts
+**/static-assets.d.ts

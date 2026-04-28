@@ -7,8 +7,6 @@ export default defineConfig({
   plugins: [vue(), viteStaticAssetsPlugin(
     {
       directory: 'public',
-      outputFile: 'src/static-assets.ts',
-      
     }
   )],
 })

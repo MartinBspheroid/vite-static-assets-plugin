@@ -16,7 +16,7 @@
   </a>
 </span>
 
-A Vite plugin that **automatically scans your static assets directory**, generates a **type-safe TypeScript module** with all asset paths, **directory-aware types**, and a helper function to get asset URLs. It validates asset references during build and updates live during development.
+A Vite plugin that **automatically scans your static assets directory** and serves a **type-safe virtual module** (`virtual:static-assets`) with all asset paths, **directory-aware types**, and a helper function to get asset URLs. It validates asset references during build and updates live during development.
 
 <img width="1048" alt="Screenshot 2025-02-25 at 12 56 29" src="https://github.com/user-attachments/assets/2750833a-d816-46c8-80c6-c636fdd3dd84" />
 
@@ -41,10 +41,10 @@ Built with <a href="https://bun.sh"><img src="https://bun.sh/logo.svg" alt="Bun 
 
 ## Usage
 
-Import the generated function and types:
+Import from the virtual module:
 
 ```typescript
-import { staticAssets, StaticAssetPath, StaticAssetDirectory, FilesInFolder } from './static-assets';
+import { staticAssets, type StaticAssetPath, type StaticAssetDirectory, type FilesInFolder } from 'virtual:static-assets';
 
 // Use the helper function
 const logoUrl = staticAssets('images/logo.svg');
@@ -56,7 +56,7 @@ const dir: StaticAssetDirectory = 'images/';
 
 
 // Type-safe list of files directly inside 'icons/brands/'
-type  Icons = FilesInFolder<'icons/brands/'>;
+type Icons = FilesInFolder<'icons/brands/'>;
 // use Icons type in your code
 type Brands = {
   icon: Icons,
@@ -82,8 +82,14 @@ const brands: Brands[] = [
     name: "Dr Pepper"
   },
 ]
-
 ```
+
+### Why not `import.meta.glob`?
+
+Vite's `import.meta.glob` with `{ eager: true, query: '?url' }` can give you a record of asset URLs, but it doesn't provide string-based lookup with compile-time validation. This plugin gives you:
+- A typed `staticAssets('path')` function that validates paths exist at build time
+- Union types for autocompletion across your entire asset directory
+- Directory-scoped types via `FilesInFolder<Dir>` for organizing assets by folder
 
 
 ---
@@ -121,23 +127,33 @@ export default defineConfig({
     staticAssetsPlugin({
       // Optional configuration (defaults shown):
       directory: 'public',
-      outputFile: 'src/static-assets.ts',
+      typesOutputFile: 'src/static-assets.d.ts',
       ignore: ['.DS_Store'],
       debounce: 200,
       enableDirectoryTypes: true,
       maxDirectoryDepth: 5,
       allowEmptyDirectories: false,
-      addLeadingSlash: true,
     })
   ]
 });
 ```
 
+### TypeScript Setup
+
+Add the plugin's type reference to your `src/vite-env.d.ts`:
+
+```typescript
+/// <reference types="vite/client" />
+/// <reference types="vite-static-assets-plugin/client" />
+```
+
+This provides fallback types for IDE resolution. The plugin generates project-specific types (with exact asset path unions) to `src/static-assets.d.ts` on first run.
+
 ---
 
-## Generated TypeScript Module
+## Generated Types
 
-The plugin generates a TypeScript file (default: `src/static-assets.ts`) containing:
+The plugin serves a virtual module (`virtual:static-assets`) with runtime code and generates a `.d.ts` file (default: `src/static-assets.d.ts`) containing:
 
 ### `StaticAssetPath`
 
@@ -216,30 +232,26 @@ Works with **any** frontend framework that uses Vite: React, Vue, Svelte, Angula
 
 ## Plugin Options
 
-| Option                   | Type            | Default                   | Description                                                                                      |
-|--------------------------|-----------------|---------------------------|--------------------------------------------------------------------------------------------------|
-| `directory`              | `string`        | `'public'`                | Directory to scan for static assets                                                              |
-| `outputFile`             | `string`        | `'src/static-assets.ts'`  | Path to generate the TypeScript module                                                           |
-| `ignore`                 | `string[]`      | `['.DS_Store']`           | Glob patterns to ignore                                                                          |
-| `debounce`               | `number`        | `200`                     | Debounce time (ms) for file watcher events                                                       |
-| `enableDirectoryTypes`   | `boolean`       | `true`                    | Generate directory-aware types (`StaticAssetDirectory`, `FilesInFolder`)                         |
-| `maxDirectoryDepth`      | `number`        | `5`                       | Maximum directory nesting level for directory type generation                                    |
-| `allowEmptyDirectories`  | `boolean`       | `false`                   | Allow referencing empty directories in validation                                                |
-| `addLeadingSlash`        | `boolean`       | `true`                    | Add a leading slash to generated asset URLs                                                      |
+| Option                   | Type            | Default                      | Description                                                                                      |
+|--------------------------|-----------------|------------------------------|--------------------------------------------------------------------------------------------------|
+| `directory`              | `string`        | `'public'`                   | Directory to scan for static assets                                                              |
+| `typesOutputFile`        | `string`        | `'src/static-assets.d.ts'`   | Path to generate the `.d.ts` type definitions                                                    |
+| `ignore`                 | `string[]`      | `['.DS_Store']`              | Glob patterns to ignore                                                                          |
+| `debounce`               | `number`        | `200`                        | Debounce time (ms) for file watcher events                                                       |
+| `enableDirectoryTypes`   | `boolean`       | `true`                       | Generate directory-aware types (`StaticAssetDirectory`, `FilesInFolder`)                         |
+| `maxDirectoryDepth`      | `number`        | `5`                          | Maximum directory nesting level for directory type generation                                    |
+| `allowEmptyDirectories`  | `boolean`       | `false`                      | Allow referencing empty directories in validation                                                |
 
 ---
 
 ## How It Works
 
 1. **Scans** the specified directory recursively, ignoring patterns.
-2. **Generates** a TypeScript file with:
-   - `StaticAssetPath` union of all asset paths.
-   - `StaticAssetDirectory` union of directories.
-   - `FilesInFolder<Dir>` generic.
-   - `staticAssets()` function.
-3. **Watches** the directory in development mode, regenerating on changes.
-4. **Validates** asset references and directory references during build.
-5. **Throws errors** with detailed info if assets or directories are missing.
+2. **Serves** a virtual module (`virtual:static-assets`) with the asset set and `staticAssets()` function, using `import.meta.env.BASE_URL` for correct base path handling.
+3. **Generates** a `.d.ts` file with `StaticAssetPath`, `StaticAssetDirectory`, and `FilesInFolder<Dir>` types.
+4. **Watches** the directory in development mode (via Vite's built-in watcher), regenerating on changes.
+5. **Validates** asset references and directory references during build.
+6. **Throws errors** with detailed info if assets or directories are missing.
 
 ---
 
@@ -256,7 +268,8 @@ Works with **any** frontend framework that uses Vite: React, Vue, Svelte, Angula
 
 ## TypeScript Integration
 
-- The generated file is **TypeScript-ready** (as long as you set `outputFile`  in your `vite.config.ts` to folder that is visible to your project).
+- Add `/// <reference types="vite-static-assets-plugin/client" />` to your `vite-env.d.ts` for baseline type resolution.
+- The plugin generates precise union types to `src/static-assets.d.ts` on every run.
 - Enjoy **auto-completion**, **type checking**, and **refactoring support** for your static assets.
 
 ---

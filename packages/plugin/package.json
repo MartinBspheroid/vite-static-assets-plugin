@@ -1,7 +1,7 @@
 {
   "name": "vite-static-assets-plugin",
   "type": "module",
-  "version": "1.2.2",
+  "version": "2.0.0",
   "description": "Typesafe static assets with Vite",
   "main": "dist/index.js",
   "module": "dist/index.js",
@@ -12,7 +12,6 @@
     "test": "vitest run",
     "test:watch": "vitest",
     "test:coverage": "vitest run --coverage",
-    "prepare": "husky",
     "typecheck": "tsc --noEmit",
     "release": "bumpp package.json packages/*/package.json --commit --push --tag"
   },
@@ -22,7 +21,7 @@
   },
   "files": [
     "dist",
-    "dist/index.d.ts",
+    "client.d.ts",
     "README.md",
     "LICENSE"
   ],
@@ -30,6 +29,9 @@
     ".": {
       "types": "./dist/index.d.ts",
       "import": "./dist/index.js"
+    },
+    "./client": {
+      "types": "./client.d.ts"
     }
   },
   "keywords": [
@@ -46,6 +48,7 @@
   "devDependencies": {
     "@biomejs/biome": "^1.9.4",
     "@types/node": "^22.13.1",
+    "@types/picomatch": "^4.0.3",
     "@vitest/coverage-v8": "^1.0.0",
     "bumpp": "^10.1.0",
     "git-cliff": "^2.8.0",
@@ -55,10 +58,11 @@
     "vite": "^6.2.0",
     "vitest": "^1.0.0"
   },
+  "engines": {
+    "node": ">=20.12.0"
+  },
   "dependencies": {
-    "chalk": "^5.4.1",
-    "chokidar": "^3.5.3",
-    "minimatch": "^10.0.1"
+    "picomatch": "^4.0.4"
   },
   "peerDependencies": {
     "typescript": "^5.0.0",

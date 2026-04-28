@@ -1,6 +1,6 @@
 <script setup lang="ts">
 
-import { staticAssets, type FilesInFolder, type StaticAssetPath} from "./static-assets"
+import { staticAssets, type FilesInFolder, type StaticAssetPath} from "virtual:static-assets"
 
 type  Icons = FilesInFolder<'icons/sun/'>;
 

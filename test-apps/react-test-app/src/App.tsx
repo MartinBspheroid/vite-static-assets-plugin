@@ -2,7 +2,7 @@ import { useState } from 'react'
 import reactLogo from './assets/react.svg'
 import viteLogo from '/vite.svg'
 import './App.css'
-import { type StaticAssetPath, staticAssets , type FilesInFolder} from "./static-assets"
+import { type StaticAssetPath, staticAssets , type FilesInFolder} from "virtual:static-assets"
 
 type  Icons = FilesInFolder<'icons/sun/'>;
 
