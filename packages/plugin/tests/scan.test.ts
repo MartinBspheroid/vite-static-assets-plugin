@@ -69,6 +69,38 @@ describe('getAllFiles', () => {
     const files = await getAllFiles(emptyDir, emptyDir, noop);
     expect(files).toEqual([]);
   });
+
+  it('should not infinite-recurse on a symlink loop', async () => {
+    const loopDir = path.join(testDir, 'looped');
+    fs.mkdirSync(loopDir);
+    fs.writeFileSync(path.join(loopDir, 'a.txt'), 'a');
+    // Create `looped/self` -> `looped/`. fs.promises.stat would follow this
+    // forever; the visited-real-path guard breaks the cycle.
+    fs.symlinkSync(loopDir, path.join(loopDir, 'self'));
+
+    const noop = () => false;
+    const files = await getAllFiles(loopDir, loopDir, noop);
+
+    // The real file is included; the symlinked subdir is skipped (visited
+    // path collapses to the same realpath).
+    expect(files).toContain('a.txt');
+    // Any path from the looped subdir would prefix with `self/`. None should
+    // appear because we skip the cycle on entry.
+    expect(files.filter((f) => f.startsWith('self/'))).toEqual([]);
+  });
+
+  it('should follow non-loop symlinks to real files', async () => {
+    const realDir = path.join(testDir, 'real');
+    const linkDir = path.join(testDir, 'link');
+    fs.mkdirSync(realDir);
+    fs.writeFileSync(path.join(realDir, 'data.txt'), 'data');
+    fs.symlinkSync(realDir, linkDir);
+
+    const noop = () => false;
+    // Scan the linked directory directly; we should see its real contents.
+    const files = await getAllFiles(linkDir, linkDir, noop);
+    expect(files).toContain('data.txt');
+  });
 });
 
 describe('extractDirectories', () => {

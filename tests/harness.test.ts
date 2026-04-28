@@ -143,9 +143,9 @@ describe.each(APPS)('$name', (app) => {
     expect(defaultBuildOk).toBe(true)
     const dts = await readFile(path.join(app.dir, app.dtsPath), 'utf8')
     expect(dts).toContain("declare module 'virtual:static-assets'")
-    expect(dts).toContain("'icons/arrow.svg'")
-    expect(dts).toContain("'icons/sun/sun.svg'")
-    expect(dts).toContain("'logo.png'")
+    expect(dts).toContain('"icons/arrow.svg"')
+    expect(dts).toContain('"icons/sun/sun.svg"')
+    expect(dts).toContain('"logo.png"')
   })
 
   if (app.kind === 'ssr') {

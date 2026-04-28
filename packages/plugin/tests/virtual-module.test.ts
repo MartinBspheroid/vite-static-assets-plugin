@@ -45,8 +45,8 @@ describe('virtual module', () => {
     const code = load('\0virtual:static-assets');
 
     expect(code).toContain('import.meta.env.BASE_URL');
-    expect(code).toContain("'logo.png'");
-    expect(code).toContain("'icons/arrow.svg'");
+    expect(code).toContain('"logo.png"');
+    expect(code).toContain('"icons/arrow.svg"');
     expect(code).toContain('new Set(');
     expect(code).toContain('export function staticAssets');
     expect(code).not.toContain('BASE_PATH');
@@ -64,8 +64,8 @@ describe('virtual module', () => {
     expect(fs.existsSync(typesOutput)).toBe(true);
     const content = fs.readFileSync(typesOutput, 'utf-8');
     expect(content).toContain("declare module 'virtual:static-assets'");
-    expect(content).toContain("'logo.png'");
-    expect(content).toContain("'icons/arrow.svg'");
+    expect(content).toContain('"logo.png"');
+    expect(content).toContain('"icons/arrow.svg"');
     expect(content).toContain('StaticAssetPath');
     expect(content).toContain('StaticAssetDirectory');
     expect(content).toContain('FilesInFolder');
@@ -73,6 +73,69 @@ describe('virtual module', () => {
 
   it('should have correct plugin name', () => {
     expect(plugin.name).toBe('vite-plugin-static-assets');
+  });
+
+  it('should route info logs through Vite logger when configResolved fires', async () => {
+    const captured: string[] = [];
+    const fakeLogger = {
+      info: (msg: string) => captured.push(`info:${msg}`),
+      warn: (msg: string) => captured.push(`warn:${msg}`),
+      warnOnce: (msg: string) => captured.push(`warnOnce:${msg}`),
+      error: (msg: string) => captured.push(`error:${msg}`),
+      clearScreen: () => {},
+      hasErrorLogged: () => false,
+      hasWarned: false,
+    };
+
+    const configResolved = (plugin as any).configResolved as Function;
+    configResolved({ logger: fakeLogger });
+
+    // Stub console.log so the default fallback (when logger is null) doesn't muddy assertions.
+    const origLog = console.log;
+    console.log = () => {};
+    try {
+      const buildStart = (plugin as any).buildStart as Function;
+      await buildStart();
+    } finally {
+      console.log = origLog;
+    }
+
+    // Bug fix: the "Generated static assets types at..." line now goes through
+    // logger.info, which Vite's --silent flag suppresses. We assert it landed
+    // on the logger, not directly on console.
+    expect(captured.some((line) => line.startsWith('info:') && line.includes('Generated static assets types'))).toBe(true);
+  });
+
+  it('should validate asset references in .mts/.cts files', async () => {
+    const buildStart = (plugin as any).buildStart as Function;
+    await buildStart();
+
+    const transform = (plugin as any).transform as Function;
+
+    // Bug fix: extension regex now matches .mts/.cts/.mjs/.cjs/.astro/.mdx.
+    const goodMts = transform.call({}, "import { staticAssets } from 'virtual:static-assets'\nstaticAssets('logo.png')", '/proj/src/foo.mts');
+    expect(goodMts).toBeNull();
+
+    expect(() =>
+      transform.call({}, "staticAssets('does-not-exist.png')", '/proj/src/foo.mts')
+    ).toThrow(/Asset not found/);
+    expect(() =>
+      transform.call({}, "staticAssets('does-not-exist.png')", '/proj/src/foo.cts')
+    ).toThrow(/Asset not found/);
+    expect(() =>
+      transform.call({}, "staticAssets('does-not-exist.png')", '/proj/src/foo.astro')
+    ).toThrow(/Asset not found/);
+  });
+
+  it('should skip non-source files (.css, .json, .md)', async () => {
+    const buildStart = (plugin as any).buildStart as Function;
+    await buildStart();
+
+    const transform = (plugin as any).transform as Function;
+    // Even with a missing-asset reference, these extensions short-circuit.
+    expect(transform.call({}, "staticAssets('does-not-exist.png')", '/proj/src/style.css')).toBeNull();
+    expect(transform.call({}, "staticAssets('does-not-exist.png')", '/proj/data.json')).toBeNull();
+    expect(transform.call({}, "staticAssets('does-not-exist.png')", '/proj/README.md')).toBeNull();
   });
 
   it('should handle empty public directory', async () => {
