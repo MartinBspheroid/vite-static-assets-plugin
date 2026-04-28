@@ -11,6 +11,7 @@
     "test": "cd packages/plugin && vitest run",
     "test:watch": "cd packages/plugin && vitest",
     "test:coverage": "cd packages/plugin && vitest run --coverage",
+    "test:unit-extended": "cd packages/plugin && bun run test:unit-extended",
     "pretest:harness": "cd packages/plugin && bun run build",
     "test:harness": "vitest run --config vitest.harness.config.ts",
     "prepare": "husky",
@@ -46,6 +47,7 @@
   "devDependencies": {
     "@types/node": "^22.13.1",
     "@vitest/coverage-v8": "^1.0.0",
+    "acorn": "^8.16.0",
     "bumpp": "^10.1.0",
     "cheerio": "^1.2.0",
     "execa": "^9.6.1",

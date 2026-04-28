@@ -10,6 +10,7 @@
       "devDependencies": {
         "@types/node": "^22.13.1",
         "@vitest/coverage-v8": "^1.0.0",
+        "acorn": "^8.16.0",
         "bumpp": "^10.1.0",
         "cheerio": "^1.2.0",
         "execa": "^9.6.1",
