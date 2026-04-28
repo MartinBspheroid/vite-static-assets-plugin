@@ -176,3 +176,4 @@ dist
 
 # Generated files
 **/static-assets.d.ts
+.claude/
