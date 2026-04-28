@@ -29,10 +29,12 @@
   "exports": {
     ".": {
       "types": "./dist/index.d.ts",
-      "import": "./dist/index.js"
+      "import": "./dist/index.js",
+      "default": "./dist/index.js"
     },
     "./client": {
-      "types": "./client.d.ts"
+      "types": "./client.d.ts",
+      "default": "./client.d.ts"
     }
   },
   "keywords": [
