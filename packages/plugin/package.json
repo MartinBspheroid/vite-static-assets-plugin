@@ -33,18 +33,13 @@
       "default": "./dist/index.js"
     },
     "./client": {
-      "types": "./client.d.ts",
-      "default": "./client.d.ts"
+      "types": "./client.d.ts"
     }
   },
   "keywords": [
     "vite",
     "plugin",
     "static"
-  ],
-  "workspaces": [
-    "test-apps/*",
-    "packages/*"
   ],
   "author": "Martin Blasko",
   "license": "MIT",

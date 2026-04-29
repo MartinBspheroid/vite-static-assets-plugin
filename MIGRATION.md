@@ -60,18 +60,34 @@ Nuxt's runtime base comes from `app.baseURL`. Set it alongside `vite.base` and f
 
 ```ts
 // nuxt.config.ts
+import staticAssets from 'vite-static-assets-plugin'
+
 const baseURL = process.env.NUXT_PUBLIC_APP_BASE_URL || '/'
+
 export default defineNuxtConfig({
   app: { baseURL },
   vite: {
     base: baseURL,
+    // REQUIRED for Nuxt: Nitro's server bundle is built by a separate Vite
+    // pass that does not inherit `vite.base` for env replacement. Without an
+    // explicit `define`, `import.meta.env.BASE_URL` is left as a literal in
+    // the SSR output and resolves to `undefined` at request time — every
+    // asset URL ships as `undefinedlogo.png`. Forcing the replacement here
+    // ensures both client and server bundles see the same base.
     define: { 'import.meta.env.BASE_URL': JSON.stringify(baseURL) },
-    plugins: [staticAssets({ directory: 'public', typesOutputFile: 'app/static-assets.d.ts' })]
-  }
+    plugins: [
+      staticAssets({
+        directory: 'public',
+        typesOutputFile: 'app/static-assets.d.ts',
+      }),
+    ],
+  },
 })
 ```
 
 `typesOutputFile: 'app/static-assets.d.ts'` puts the generated types under Nuxt 4's default `srcDir` (`app/`), where the auto-generated `.nuxt/tsconfig.app.json` already includes them — no extra `tsConfig.include` plumbing needed.
+
+If you skip the `vite.define` line, the client build will work but the SSR-rendered HTML will contain `undefined`-prefixed asset URLs. The cross-framework test harness for this plugin enforces that the SSR server bundle has `import.meta.env.BASE_URL` fully replaced, so a regression here is caught automatically — but real apps need the `define` to keep that invariant true.
 
 #### TanStack Start, React SPA, Vue SPA
 

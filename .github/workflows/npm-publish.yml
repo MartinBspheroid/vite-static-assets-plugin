@@ -54,6 +54,9 @@ jobs:
       - name: Copy README to plugin package
         run: cp README.md packages/plugin/README.md
 
+      - name: Copy LICENSE to plugin package
+        run: cp LICENSE packages/plugin/LICENSE
+
       - name: Publish Package
         env:
           NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

@@ -8,7 +8,7 @@ import picomatch from 'picomatch';
 const VIRTUAL_MODULE_ID = 'virtual:static-assets';
 const RESOLVED_VIRTUAL_MODULE_ID = '\0virtual:static-assets';
 
-interface StaticAssetsPluginOptions {
+export interface StaticAssetsPluginOptions {
   /**
    * Directory to scan for static assets
    * @default "public"
