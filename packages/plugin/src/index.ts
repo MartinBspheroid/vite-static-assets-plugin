@@ -266,9 +266,14 @@ function validateAssetReferences(
   // eslint-disable-next-line @typescript-eslint/no-unused-vars
   _options: StaticAssetsPluginOptions = {}
 ): string | null {
-  const staticAssetsRegex = /staticAssets\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
+  // Two alternations, one per quote style, so we track which quote opened the
+  // literal and allow the other quote (and escape sequences) inside.
+  const staticAssetsRegex = /staticAssets\s*\(\s*(?:'((?:[^'\\]|\\.)*)'|"((?:[^"\\]|\\.)*)")\s*\)/g;
   for (const match of code.matchAll(staticAssetsRegex)) {
-    const assetPath = match[1];
+    const rawAssetPath = match[1] ?? match[2];
+    // Unescape the captured value: \', \", and \\ are the only escapes we
+    // need to undo for a path-like literal.
+    const assetPath = rawAssetPath.replace(/\\(['"\\])/g, '$1');
     if (!currentFiles.has(assetPath)) {
       const relativeId = normalizePath(path.relative(process.cwd(), id));
       const relativeDir = normalizePath(path.relative(process.cwd(), directory));
@@ -394,13 +399,19 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
     },
 
     transform(code: string, id: string) {
-      // Skip node_modules and the virtual module itself
-      if (id.includes('node_modules') || id === RESOLVED_VIRTUAL_MODULE_ID) {
+      // Skip node_modules and any virtual module (ours or another plugin's —
+      // virtual ids are conventionally prefixed with `\0`).
+      if (id.includes('node_modules') || id.startsWith('\0')) {
         return null;
       }
+      // Strip the query string before extension matching. Vite passes SFC
+      // sub-block ids with queries (e.g. `App.vue?vue&type=template`) and
+      // virtual-id suffixes (`foo.tsx?virtual`); the `$` anchor would
+      // otherwise let those slip past validation silently.
+      const cleanId = id.split('?')[0];
       // Only process relevant files. Covers JS/TS (with esm/cjs variants),
       // Vue/Svelte SFCs, and Astro/MDX components.
-      if (!/\.(?:[mc]?[jt]sx?|vue|svelte|astro|mdx)$/.test(id)) {
+      if (!/\.(?:[mc]?[jt]sx?|vue|svelte|astro|mdx)$/.test(cleanId)) {
         return null;
       }
 
