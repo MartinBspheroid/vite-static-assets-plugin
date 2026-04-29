@@ -23,7 +23,7 @@ jobs:
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ matrix.node-version }}-${{ hashFiles('bun.lock') }}
-      - run: bun install
+      - run: bun install --frozen-lockfile
       - run: cd packages/plugin && bun run build
       - run: cd packages/plugin && bun run typecheck
       - run: cd packages/plugin && bun run test
@@ -47,7 +47,7 @@ jobs:
         with:
           path: ~/.bun/install/cache
           key: ${{ runner.os }}-bun-${{ matrix.node-version }}-${{ hashFiles('bun.lock') }}
-      - run: bun install
+      - run: bun install --frozen-lockfile
       - run: cd packages/plugin && bun run build
       - run: cd packages/plugin && bun run test:unit-extended
 
@@ -73,5 +73,5 @@ jobs:
             node_modules
             test-apps/*/node_modules
           key: ${{ runner.os }}-bun-harness-${{ matrix.node-version }}-${{ hashFiles('bun.lock') }}
-      - run: bun install
+      - run: bun install --frozen-lockfile
       - run: bun run test:harness
