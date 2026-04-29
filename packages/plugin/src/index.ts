@@ -44,11 +44,6 @@ export interface StaticAssetsPluginOptions {
    */
   maxDirectoryDepth?: number;
   /**
-   * Whether to allow referencing empty directories in transform hook validation
-   * @default false
-   */
-  allowEmptyDirectories?: boolean;
-  /**
    * @deprecated No longer needed — base URL is handled automatically via import.meta.env.BASE_URL.
    */
   addLeadingSlash?: boolean;
@@ -268,10 +263,9 @@ function validateAssetReferences(
   id: string,
   currentFiles: Set<string>,
   directory: string,
-  options: StaticAssetsPluginOptions = {}
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
+  _options: StaticAssetsPluginOptions = {}
 ): string | null {
-  const enableDirectoryTypes = options.enableDirectoryTypes !== false;
-
   const staticAssetsRegex = /staticAssets\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
   for (const match of code.matchAll(staticAssetsRegex)) {
     const assetPath = match[1];
@@ -279,28 +273,6 @@ function validateAssetReferences(
       const relativeId = normalizePath(path.relative(process.cwd(), id));
       const relativeDir = normalizePath(path.relative(process.cwd(), directory));
       return `\n\n${styleText('red', 'Error:')} Static asset: ${styleText('yellowBright', assetPath)}\n  Referenced in: ${styleText('cyan', relativeId)}\n  Asset not found in scanned directory: ${styleText('blue', relativeDir)}\n\n  Please ensure the asset exists and the path is correct.\n`;
-    }
-  }
-
-  if (enableDirectoryTypes) {
-    const staticAssetsDirRegex = /staticAssetsFromDir\s*\(\s*['"]([^'"]+)['"]\s*\)/g;
-    for (const dirMatch of code.matchAll(staticAssetsDirRegex)) {
-      const dirPath = dirMatch[1];
-      let hasAssetsInDir = false;
-
-      if (dirPath === '.') {
-        hasAssetsInDir = Array.from(currentFiles).some(file => !file.includes('/'));
-      } else {
-        const normalizedPath = path.posix.normalize(dirPath);
-        const dirPathWithSlash = normalizedPath.endsWith('/') ? normalizedPath : `${normalizedPath}/`;
-        hasAssetsInDir = Array.from(currentFiles).some(file => file.startsWith(dirPathWithSlash));
-      }
-
-      if (!hasAssetsInDir && options.allowEmptyDirectories !== true) {
-        const relativeId = normalizePath(path.relative(process.cwd(), id));
-        const relativeDir = normalizePath(path.relative(process.cwd(), directory));
-        return `\n\n${styleText('red', 'Error:')} Static asset directory: ${styleText('yellowBright', dirPath)}\n  Referenced in: ${styleText('cyan', relativeId)}\n  Directory is empty or does not exist in scanned directory: ${styleText('blue', relativeDir)}\n\n  Ensure the directory contains assets or set 'allowEmptyDirectories: true'.\n`;
-      }
     }
   }
 

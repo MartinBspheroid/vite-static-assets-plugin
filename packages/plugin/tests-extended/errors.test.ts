@@ -26,21 +26,6 @@ describe('error formats', () => {
     expect(stripped).toContain('Please ensure the asset exists and the path is correct.')
   })
 
-  it('H3. empty-directory error mentions allowEmptyDirectories suggestion', () => {
-    const err = validateAssetReferences(
-      `staticAssetsFromDir('phantom/')`,
-      '/proj/src/App.tsx',
-      FILES,
-      '/proj/public',
-    )
-    expect(err).not.toBeNull()
-    const stripped = stripAnsi(err as string)
-    expect(stripped).toContain('Static asset directory:')
-    expect(stripped).toContain('phantom')
-    expect(stripped).toContain('empty or does not exist')
-    expect(stripped).toContain("'allowEmptyDirectories: true'")
-  })
-
   it('H5. only the FIRST missing asset is reported (current limitation)', () => {
     // The function returns on first miss. Document that subsequent missing
     // refs in the same file aren't all surfaced in one pass.

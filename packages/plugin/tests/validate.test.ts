@@ -48,41 +48,4 @@ describe('validateAssetReferences', () => {
     const result = validateAssetReferences(code, '/project/src/App.tsx', knownFiles, directory);
     expect(result).toBeNull();
   });
-
-  describe('directory validation', () => {
-    it('should validate staticAssetsFromDir with existing directory', () => {
-      const code = `const files = staticAssetsFromDir('icons/');`;
-      const result = validateAssetReferences(code, '/project/src/App.tsx', knownFiles, directory, {
-        enableDirectoryTypes: true,
-      });
-      expect(result).toBeNull();
-    });
-
-    it('should return error for empty directory', () => {
-      const code = `const files = staticAssetsFromDir('empty/');`;
-      const result = validateAssetReferences(code, '/project/src/App.tsx', knownFiles, directory, {
-        enableDirectoryTypes: true,
-      });
-      expect(result).not.toBeNull();
-      expect(result).toContain('empty/');
-    });
-
-    it('should allow empty directories when option is set', () => {
-      const code = `const files = staticAssetsFromDir('empty/');`;
-      const result = validateAssetReferences(code, '/project/src/App.tsx', knownFiles, directory, {
-        enableDirectoryTypes: true,
-        allowEmptyDirectories: true,
-      });
-      expect(result).toBeNull();
-    });
-
-    it('should validate root directory with dot', () => {
-      const code = `const files = staticAssetsFromDir('.');`;
-      const result = validateAssetReferences(code, '/project/src/App.tsx', knownFiles, directory, {
-        enableDirectoryTypes: true,
-      });
-      // Root has logo.png, so this should pass
-      expect(result).toBeNull();
-    });
-  });
 });

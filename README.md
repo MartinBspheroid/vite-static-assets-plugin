@@ -28,9 +28,9 @@ A Vite plugin that **automatically scans your static assets directory** and serv
 - 🛡 **Type-Safe API:** Generates a union type `StaticAssetPath` of all valid asset paths.
 - 📁 **Directory-Aware Types:** Generates `StaticAssetDirectory` and a powerful `FilesInFolder<Dir>` generic for directory-specific asset typing.
 - 🔗 **Helper Function:** Provides `staticAssets()` to get the URL for an asset, with runtime validation.
-- 🛠 **Highly Configurable:** Customize directory, output file, ignore patterns, debounce, directory depth, empty directory handling, leading slash, and more.
+- 🛠 **Highly Configurable:** Customize directory, output file, ignore patterns, debounce, directory depth, and more.
 - 🔄 **Live Updates:** Watches the directory in development mode and regenerates types on changes.
-- 🧭 **Validation:** Validates asset references and directory references during build, with detailed error messages.
+- 🧭 **Validation:** Validates `staticAssets()` calls during build, with detailed error messages.
 - ⚡ **Fast:** Minimal overhead, optimized for large projects.
 <p style="text-align: center; display: flex;  justify-content: center; align-items: center; gap: 10px;">
 Built with <a href="https://bun.sh"><img src="https://bun.sh/logo.svg" alt="Bun Logo" height="16" /> Bun</a> – the ultra-fast JavaScript runtime & toolkit
@@ -139,7 +139,6 @@ export default defineConfig({
       debounce: 200,
       enableDirectoryTypes: true,
       maxDirectoryDepth: 5,
-      allowEmptyDirectories: false,
     })
   ]
 });
@@ -247,7 +246,6 @@ Works with **any** frontend framework that uses Vite: React, Vue, Svelte, Angula
 | `debounce`               | `number`        | `200`                        | Debounce time (ms) for file watcher events                                                       |
 | `enableDirectoryTypes`   | `boolean`       | `true`                       | Generate directory-aware types (`StaticAssetDirectory`, `FilesInFolder`)                         |
 | `maxDirectoryDepth`      | `number`        | `5`                          | Maximum directory nesting level for directory type generation                                    |
-| `allowEmptyDirectories`  | `boolean`       | `false`                      | Allow referencing empty directories in validation                                                |
 
 ---
 
@@ -257,16 +255,15 @@ Works with **any** frontend framework that uses Vite: React, Vue, Svelte, Angula
 2. **Serves** a virtual module (`virtual:static-assets`) with the asset set and `staticAssets()` function, using `import.meta.env.BASE_URL` for correct base path handling.
 3. **Generates** a `.d.ts` file with `StaticAssetPath`, `StaticAssetDirectory`, and `FilesInFolder<Dir>` types.
 4. **Watches** the directory in development mode (via Vite's built-in watcher), regenerating on changes.
-5. **Validates** asset references and directory references during build.
-6. **Throws errors** with detailed info if assets or directories are missing.
+5. **Validates** `staticAssets()` calls during build.
+6. **Throws errors** with detailed info if a referenced asset is missing.
 
 ---
 
 ## Error Handling
 
 - If you reference a missing asset in `staticAssets()`, the plugin throws a build-time error with details (even if you're skipping TS typechecking before build).
-- If you reference a directory (via `FilesInFolder` or in code) that is empty or missing, it throws an error **unless** `allowEmptyDirectories: true`.
-- Errors include the file path, missing asset/directory, and suggestions.
+- Errors include the file path, missing asset, and suggestions.
 
 <img width="1048" alt="Screenshot 2025-02-25 at 12 56 50" src="https://github.com/user-attachments/assets/aad8cd9e-b5db-46b8-9ef9-73b031795482" />
 
