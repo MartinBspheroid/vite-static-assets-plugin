@@ -290,27 +290,52 @@ export { getAllFiles, extractDirectories, generateVirtualModuleCode, generateDts
 // --- Main Plugin Function ---
 
 export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = {}): Plugin {
-  const directory = path.resolve(process.cwd(), options.directory || 'public');
   const ignorePatterns = options.ignore || ['.DS_Store'];
   const enableDirectoryTypes = options.enableDirectoryTypes !== false;
   const isIgnored = picomatch(ignorePatterns, { dot: true });
 
-  // Resolve typesOutputFile, with deprecation fallback from outputFile
-  let typesOutputFile: string;
-  if (options.typesOutputFile) {
-    typesOutputFile = path.resolve(process.cwd(), options.typesOutputFile);
-  } else if (options.outputFile) {
-    console.warn(`${styleText('yellow', '⚠')} [vite-plugin-static-assets] 'outputFile' is deprecated. Use 'typesOutputFile' instead. The plugin now generates a .d.ts file, not a .ts file.`);
-    // Derive .d.ts path from old outputFile
-    const oldPath = options.outputFile;
-    typesOutputFile = path.resolve(process.cwd(), oldPath.replace(/\.ts$/, '.d.ts'));
-  } else {
-    typesOutputFile = path.resolve(process.cwd(), 'src/static-assets.d.ts');
-  }
-
   if (options.addLeadingSlash !== undefined) {
     console.warn(`${styleText('yellow', '⚠')} [vite-plugin-static-assets] 'addLeadingSlash' is deprecated and ignored. Base URL is now handled automatically via import.meta.env.BASE_URL.`);
   }
+
+  // Deprecation warning for `outputFile` fires at factory time (independent of
+  // root resolution), matching the behavior of `addLeadingSlash`. The actual
+  // path rewrite (.ts -> .d.ts) lives in resolvePaths.
+  if (options.outputFile && !options.typesOutputFile) {
+    console.warn(`${styleText('yellow', '⚠')} [vite-plugin-static-assets] 'outputFile' is deprecated. Use 'typesOutputFile' instead. The plugin now generates a .d.ts file, not a .ts file.`);
+  }
+
+  // Path resolution is deferred to configResolved so we can base it on
+  // resolvedConfig.root (which respects Vite's `root` option and the
+  // directory the user actually invoked Vite from). Resolving against
+  // process.cwd() at factory time silently scans the wrong public/ when
+  // running e.g. `vite -c apps/web/vite.config.ts` from a parent dir or
+  // with `root: 'app'` in config.
+  //
+  // Tests that drive plugin hooks directly without firing configResolved
+  // get a process.cwd()-based fallback resolved on first use.
+  let directory: string | null = null;
+  let typesOutputFile: string | null = null;
+
+  const resolvePaths = (root: string) => {
+    directory = path.resolve(root, options.directory || 'public');
+    if (options.typesOutputFile) {
+      typesOutputFile = path.resolve(root, options.typesOutputFile);
+    } else if (options.outputFile) {
+      // Derive .d.ts path from old outputFile (deprecation warning already
+      // emitted at factory time above)
+      const oldPath = options.outputFile;
+      typesOutputFile = path.resolve(root, oldPath.replace(/\.ts$/, '.d.ts'));
+    } else {
+      typesOutputFile = path.resolve(root, 'src/static-assets.d.ts');
+    }
+  };
+
+  const ensurePathsResolved = () => {
+    if (directory === null || typesOutputFile === null) {
+      resolvePaths(process.cwd());
+    }
+  };
 
   // State
   let currentFiles: Set<string> = new Set();
@@ -327,14 +352,15 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
   };
 
   const writeDtsFile = async (files: string[]) => {
+    ensurePathsResolved();
     const dtsCode = generateDtsCode(files, { ...options, enableDirectoryTypes });
-    const outputDir = path.dirname(typesOutputFile);
+    const outputDir = path.dirname(typesOutputFile!);
     await fs.promises.mkdir(outputDir, { recursive: true });
 
     // Only write if content changed
-    const currentContent = await fs.promises.readFile(typesOutputFile, 'utf-8').catch(() => '');
+    const currentContent = await fs.promises.readFile(typesOutputFile!, 'utf-8').catch(() => '');
     if (currentContent !== dtsCode) {
-      await fs.promises.writeFile(typesOutputFile, dtsCode);
+      await fs.promises.writeFile(typesOutputFile!, dtsCode);
       return true;
     }
     return false;
@@ -345,6 +371,7 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
 
     configResolved(resolvedConfig) {
       logger = resolvedConfig.logger;
+      resolvePaths(resolvedConfig.root);
     },
 
     resolveId(id) {
@@ -361,13 +388,14 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
 
     async buildStart() {
       try {
+        ensurePathsResolved();
         // Stat the source. ENOENT is a soft warning (some workflows scan a
         // directory that doesn't exist yet); any other access error or a
         // non-directory target is a hard failure — silently emitting empty
         // types would hide the misconfiguration.
         let sourceExists = false;
         try {
-          const stat = await fs.promises.stat(directory);
+          const stat = await fs.promises.stat(directory!);
           if (!stat.isDirectory()) {
             throw new Error(
               `[vite-plugin-static-assets] 'directory' option "${options.directory || 'public'}" is not a directory.`,
@@ -385,13 +413,13 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
         }
 
         // Scan files
-        const files = sourceExists ? await getAllFiles(directory, directory, isIgnored) : [];
+        const files = sourceExists ? await getAllFiles(directory!, directory!, isIgnored) : [];
 
         currentFiles = new Set(files);
 
         // Write .d.ts file
         await writeDtsFile(files);
-        info(`${styleText('green', '✓')} Generated static assets types at ${styleText('blue', normalizePath(path.relative(process.cwd(), typesOutputFile)))} (${currentFiles.size} assets)`);
+        info(`${styleText('green', '✓')} Generated static assets types at ${styleText('blue', normalizePath(path.relative(process.cwd(), typesOutputFile!)))} (${currentFiles.size} assets)`);
       } catch (err) {
         console.error(`${styleText('red', '✗')} [vite-plugin-static-assets] Error during buildStart: ${err instanceof Error ? err.message : err}`);
         throw err;
@@ -415,7 +443,8 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
         return null;
       }
 
-      const error = validateAssetReferences(code, id, currentFiles, directory, options);
+      ensurePathsResolved();
+      const error = validateAssetReferences(code, id, currentFiles, directory!, options);
       if (error) {
         console.error(error);
         throw new Error(error);
@@ -426,16 +455,17 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
 
     configureServer(devServer) {
       server = devServer;
+      ensurePathsResolved();
 
       // Use Vite's built-in watcher instead of a separate chokidar instance
-      server.watcher.add(directory);
+      server.watcher.add(directory!);
 
       const handleChange = async () => {
         if (debounceTimer) clearTimeout(debounceTimer);
         debounceTimer = setTimeout(async () => {
           try {
             info(`${styleText('cyan', 'ℹ')} [vite-plugin-static-assets] Change detected, regenerating types...`);
-            const updatedFiles = await getAllFiles(directory, directory, isIgnored);
+            const updatedFiles = await getAllFiles(directory!, directory!, isIgnored);
             const newFileSet = new Set(updatedFiles);
 
             // Short-circuit if file set hasn't changed
@@ -469,7 +499,7 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
       server.watcher.on('addDir', handleChange);
       server.watcher.on('unlinkDir', handleChange);
 
-      info(`${styleText('cyan', 'ℹ')} [vite-plugin-static-assets] Watching for changes in ${styleText('blue', normalizePath(path.relative(process.cwd(), directory)))}`);
+      info(`${styleText('cyan', 'ℹ')} [vite-plugin-static-assets] Watching for changes in ${styleText('blue', normalizePath(path.relative(process.cwd(), directory!)))}`);
     },
 
     buildEnd() {

@@ -14,8 +14,11 @@ export default defineNuxtConfig({
     },
     plugins: [
       staticAssets({
-        directory: 'public',
-        typesOutputFile: 'app/static-assets.d.ts'
+        // Nuxt 4 sets Vite's root to `app/`; the public/ dir lives at the
+        // project root, so we go up one level. Resolution is now against
+        // resolvedConfig.root (B3 fix), not process.cwd().
+        directory: '../public',
+        typesOutputFile: 'static-assets.d.ts'
       })
     ]
   }
