@@ -342,6 +342,12 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
   let debounceTimer: ReturnType<typeof setTimeout> | null = null;
   let server: ViteDevServer | null = null;
   let logger: Logger | null = null;
+  // Bound watcher handler retained so it can be detached in cleanup. Using a
+  // single shared handler keeps add/off pairings symmetrical.
+  let registeredHandler: ((changedPath: string) => void) | null = null;
+  // Detaches listeners and clears timers. Set in configureServer; called from
+  // closeBundle and httpServer 'close'.
+  let cleanup: (() => void) | null = null;
   const info = (msg: string) => {
     if (logger) logger.info(msg);
     else console.log(msg);
@@ -460,49 +466,122 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
       // Use Vite's built-in watcher instead of a separate chokidar instance
       server.watcher.add(directory!);
 
-      const handleChange = async () => {
-        if (debounceTimer) clearTimeout(debounceTimer);
-        debounceTimer = setTimeout(async () => {
-          try {
-            info(`${styleText('cyan', 'ℹ')} [vite-plugin-static-assets] Change detected, regenerating types...`);
-            const updatedFiles = await getAllFiles(directory!, directory!, isIgnored);
-            const newFileSet = new Set(updatedFiles);
+      // Normalized directory + separator for path-prefix gating. Vite normalizes
+      // chokidar event paths to POSIX, but we accept either separator defensively.
+      const normalizedDirectory = normalizePath(directory!);
+      const isInsideDirectory = (changedPath: string): boolean => {
+        if (!changedPath) return false;
+        const normalized = normalizePath(changedPath);
+        if (normalized === normalizedDirectory) return true;
+        return normalized.startsWith(`${normalizedDirectory}/`);
+      };
 
-            // Short-circuit if file set hasn't changed
-            if (newFileSet.size === currentFiles.size && [...newFileSet].every(f => currentFiles.has(f))) {
-              info(`${styleText('gray', '✓')} [vite-plugin-static-assets] No changes in asset set.`);
-              return;
-            }
+      // Serialize rescans: a new debounce firing while a previous rescan is
+      // still running awaits it, so we never race on `currentFiles` or the dts
+      // write. clearTimeout cancels pending debounces; this awaits in-flight ones.
+      let inFlight: Promise<void> | null = null;
 
-            currentFiles = newFileSet;
+      const runRescan = async () => {
+        try {
+          info(`${styleText('cyan', 'ℹ')} [vite-plugin-static-assets] Change detected, regenerating types...`);
+          const updatedFiles = await getAllFiles(directory!, directory!, isIgnored);
+          const newFileSet = new Set(updatedFiles);
 
-            // Regenerate .d.ts
-            await writeDtsFile(updatedFiles);
-
-            // Invalidate the virtual module so Vite re-loads it
-            const mod = server!.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
-            if (mod) {
-              server!.moduleGraph.invalidateModule(mod);
-            }
-            server!.ws.send({ type: 'full-reload' });
-
-            info(`${styleText('green', '✓')} Updated static assets type definitions — ${currentFiles.size} assets.`);
-          } catch (err) {
-            console.error(`${styleText('red', '✗')} Error updating static assets: ${err instanceof Error ? err.message : err}`);
+          // Short-circuit if file set hasn't changed
+          if (newFileSet.size === currentFiles.size && [...newFileSet].every(f => currentFiles.has(f))) {
+            info(`${styleText('gray', '✓')} [vite-plugin-static-assets] No changes in asset set.`);
+            return;
           }
+
+          currentFiles = newFileSet;
+
+          // Regenerate .d.ts
+          await writeDtsFile(updatedFiles);
+
+          // Server may have been torn down while we were awaiting I/O. Touching
+          // a stale moduleGraph would crash with a confusing error.
+          if (!server) return;
+          const mod = server.moduleGraph.getModuleById(RESOLVED_VIRTUAL_MODULE_ID);
+          if (mod) {
+            server.moduleGraph.invalidateModule(mod);
+          }
+          server.ws.send({ type: 'full-reload' });
+
+          info(`${styleText('green', '✓')} Updated static assets type definitions — ${currentFiles.size} assets.`);
+        } catch (err) {
+          console.error(`${styleText('red', '✗')} Error updating static assets: ${err instanceof Error ? err.message : err}`);
+        }
+      };
+
+      const handleChange = (changedPath: string) => {
+        // server.watcher is Vite's project-wide chokidar — every src/ save
+        // would otherwise trigger a full rescan of `directory`. Gate at the
+        // top so the debounce timer is only armed for genuine asset events.
+        if (!isInsideDirectory(changedPath)) return;
+        if (debounceTimer) clearTimeout(debounceTimer);
+        debounceTimer = setTimeout(() => {
+          debounceTimer = null;
+          const prev = inFlight;
+          const current: Promise<void> = (async () => {
+            if (prev) {
+              try { await prev; } catch { /* prior failure already logged */ }
+            }
+            await runRescan();
+          })();
+          inFlight = current;
+          // Only clear `inFlight` if no later rescan has replaced us; this
+          // avoids racing a subsequent debounce that overwrote `inFlight`.
+          current.finally(() => {
+            if (inFlight === current) inFlight = null;
+          });
         }, options.debounce ?? 200);
       };
 
+      // buildEnd is a Rollup hook and doesn't fire when a Vite dev server stops
+      // (only closeBundle and httpServer 'close' do). Leaving listeners attached
+      // would leak across server.restart() and let stale callbacks touch a torn-
+      // down server. Track handlers and detach them in cleanup.
       server.watcher.on('add', handleChange);
       server.watcher.on('unlink', handleChange);
       server.watcher.on('change', handleChange);
       server.watcher.on('addDir', handleChange);
       server.watcher.on('unlinkDir', handleChange);
 
+      registeredHandler = handleChange;
+      cleanup = () => {
+        if (debounceTimer) {
+          clearTimeout(debounceTimer);
+          debounceTimer = null;
+        }
+        if (server && registeredHandler) {
+          server.watcher.off('add', registeredHandler);
+          server.watcher.off('unlink', registeredHandler);
+          server.watcher.off('change', registeredHandler);
+          server.watcher.off('addDir', registeredHandler);
+          server.watcher.off('unlinkDir', registeredHandler);
+        }
+        registeredHandler = null;
+        server = null;
+      };
+
+      server.httpServer?.once('close', () => {
+        cleanup?.();
+        cleanup = null;
+      });
+
       info(`${styleText('cyan', 'ℹ')} [vite-plugin-static-assets] Watching for changes in ${styleText('blue', normalizePath(path.relative(process.cwd(), directory!)))}`);
     },
 
+    closeBundle() {
+      // Dev-server teardown path: closeBundle fires; httpServer 'close' may
+      // also fire. Either path runs cleanup; the second call is a no-op.
+      cleanup?.();
+      cleanup = null;
+    },
+
     buildEnd() {
+      // Rollup build path (vite build): no watcher was registered, but if a
+      // debounce timer somehow exists we still cancel it.
       if (debounceTimer) {
         clearTimeout(debounceTimer);
         debounceTimer = null;
