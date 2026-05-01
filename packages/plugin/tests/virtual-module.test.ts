@@ -88,7 +88,8 @@ describe('virtual module', () => {
     };
 
     const configResolved = (plugin as any).configResolved as Function;
-    configResolved({ logger: fakeLogger });
+    // root is required since resolvePaths runs in configResolved post-B3.
+    configResolved({ logger: fakeLogger, root: process.cwd() });
 
     // Stub console.log so the default fallback (when logger is null) doesn't muddy assertions.
     const origLog = console.log;

@@ -108,21 +108,28 @@ describe('watcher path filter (B4)', () => {
     const plugin = staticAssetsPlugin({ typesOutputFile: dts, debounce: 30 })
     await bootstrap(plugin)
 
-    // Snapshot the dts mtime so we can prove no rewrite happened.
-    const initialStat = fs.statSync(dts)
+    const initialContent = fs.readFileSync(dts, 'utf8')
+    expect(initialContent).toContain('"logo.png"')
 
     const server = makeFakeServer()
     configureServer(plugin, server)
 
-    // Emit a change far outside the watched directory.
-    server.watcher.emit('change', path.join(tmpRoot, 'src/some-file.ts'))
+    // Add a NEW asset on disk WITHOUT emitting an event for it. If the path
+    // filter were a no-op, the out-of-tree event below would still trigger
+    // a rescan, which would walk public/, see the new file, and rewrite the
+    // dts to include "icon.svg". With the filter working correctly, the
+    // handler returns early, no rescan runs, and the dts retains its old
+    // contents. (The previous version of this test relied only on mtime
+    // stability, which would also be satisfied by the no-changes
+    // short-circuit even if the filter were broken — false-pass risk.)
+    fs.writeFileSync('public/icon.svg', 'x')
 
-    // Wait well past the debounce window so any (incorrect) rescan would have
-    // completed. We pick a generous margin to keep this stable on slow CI.
+    server.watcher.emit('change', path.join(tmpRoot, 'src/some-file.ts'))
     await new Promise((r) => setTimeout(r, 120))
 
-    const afterStat = fs.statSync(dts)
-    expect(afterStat.mtimeMs).toBe(initialStat.mtimeMs)
+    const afterContent = fs.readFileSync(dts, 'utf8')
+    expect(afterContent).toBe(initialContent)
+    expect(afterContent).not.toContain('"icon.svg"')
   })
 
   it('processes change events inside the configured directory', async () => {

@@ -263,8 +263,7 @@ function validateAssetReferences(
   id: string,
   currentFiles: Set<string>,
   directory: string,
-  // eslint-disable-next-line @typescript-eslint/no-unused-vars
-  _options: StaticAssetsPluginOptions = {}
+  displayRoot: string = process.cwd()
 ): string | null {
   // Two alternations, one per quote style, so we track which quote opened the
   // literal and allow the other quote (and escape sequences) inside.
@@ -275,8 +274,11 @@ function validateAssetReferences(
     // need to undo for a path-like literal.
     const assetPath = rawAssetPath.replace(/\\(['"\\])/g, '$1');
     if (!currentFiles.has(assetPath)) {
-      const relativeId = normalizePath(path.relative(process.cwd(), id));
-      const relativeDir = normalizePath(path.relative(process.cwd(), directory));
+      // displayRoot lets the caller (the plugin's transform hook) anchor
+      // path messages to Vite's resolvedConfig.root rather than the invoker's
+      // cwd, so error output makes sense in monorepos with non-default root.
+      const relativeId = normalizePath(path.relative(displayRoot, id));
+      const relativeDir = normalizePath(path.relative(displayRoot, directory));
       return `\n\n${styleText('red', 'Error:')} Static asset: ${styleText('yellowBright', assetPath)}\n  Referenced in: ${styleText('cyan', relativeId)}\n  Asset not found in scanned directory: ${styleText('blue', relativeDir)}\n\n  Please ensure the asset exists and the path is correct.\n`;
     }
   }
@@ -316,8 +318,13 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
   // get a process.cwd()-based fallback resolved on first use.
   let directory: string | null = null;
   let typesOutputFile: string | null = null;
+  // Captured from configResolved for display-only path formatting in error
+  // messages and info logs. Falls back to process.cwd() if configResolved
+  // never fires (test-only paths).
+  let resolvedRoot: string = process.cwd();
 
   const resolvePaths = (root: string) => {
+    resolvedRoot = root;
     directory = path.resolve(root, options.directory || 'public');
     if (options.typesOutputFile) {
       typesOutputFile = path.resolve(root, options.typesOutputFile);
@@ -425,7 +432,7 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
 
         // Write .d.ts file
         await writeDtsFile(files);
-        info(`${styleText('green', '✓')} Generated static assets types at ${styleText('blue', normalizePath(path.relative(process.cwd(), typesOutputFile!)))} (${currentFiles.size} assets)`);
+        info(`${styleText('green', '✓')} Generated static assets types at ${styleText('blue', normalizePath(path.relative(resolvedRoot, typesOutputFile!)))} (${currentFiles.size} assets)`);
       } catch (err) {
         console.error(`${styleText('red', '✗')} [vite-plugin-static-assets] Error during buildStart: ${err instanceof Error ? err.message : err}`);
         throw err;
@@ -450,7 +457,7 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
       }
 
       ensurePathsResolved();
-      const error = validateAssetReferences(code, id, currentFiles, directory!, options);
+      const error = validateAssetReferences(code, id, currentFiles, directory!, resolvedRoot);
       if (error) {
         console.error(error);
         throw new Error(error);
@@ -564,12 +571,17 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
         server = null;
       };
 
+      // Capture the per-instance cleanup. If Vite calls server.restart() and
+      // a fresh configureServer runs before this httpServer's 'close' fires,
+      // the listener would otherwise reference the NEW server's cleanup —
+      // tearing down the wrong listeners. Bind to ours.
+      const ourCleanup = cleanup;
       server.httpServer?.once('close', () => {
-        cleanup?.();
-        cleanup = null;
+        ourCleanup?.();
+        if (cleanup === ourCleanup) cleanup = null;
       });
 
-      info(`${styleText('cyan', 'ℹ')} [vite-plugin-static-assets] Watching for changes in ${styleText('blue', normalizePath(path.relative(process.cwd(), directory!)))}`);
+      info(`${styleText('cyan', 'ℹ')} [vite-plugin-static-assets] Watching for changes in ${styleText('blue', normalizePath(path.relative(resolvedRoot, directory!)))}`);
     },
 
     closeBundle() {

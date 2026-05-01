@@ -14,6 +14,8 @@
     "test:coverage": "vitest run --coverage",
     "test:unit-extended": "vitest run --config vitest.unit-extended.config.ts",
     "typecheck": "tsc --noEmit",
+    "prepack": "node -e \"require('node:fs').copyFileSync('../../README.md','README.md')\"",
+    "postpack": "node -e \"try{require('node:fs').unlinkSync('README.md')}catch{}\"",
     "release": "bumpp package.json packages/*/package.json --commit --push --tag"
   },
   "repository": {
