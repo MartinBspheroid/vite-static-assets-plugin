@@ -177,6 +177,8 @@ dist
 # Generated files
 **/static-assets.d.ts
 .claude/
+.agents/
+.aris/
 
 # Pack-time README copy (see packages/plugin scripts.prepack/postpack)
 packages/plugin/README.md
