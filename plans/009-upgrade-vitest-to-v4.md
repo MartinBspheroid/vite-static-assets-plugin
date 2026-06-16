@@ -15,12 +15,25 @@
 - **Risk**: MED (crosses 3 Vitest majors; touches all test configs)
 - **Depends on**: none (do this **before** 004 benchmarks if both are taken —
   `vitest bench` config shape is cleanest on v4)
-- **Category**: dependencies / build
+- **Category**: dependencies / build / **security**
 - **Planned at**: commit `591af05`, 2026-06-15
+- **Priority raised to P1 on 2026-06-16**: GitHub Dependabot reports **2 open
+  CRITICAL alerts** for the pinned `vitest` — **CVE-2026-47429 /
+  GHSA-5xrq-8626-4rwp** ("when the Vitest UI server is listening, an arbitrary
+  file can be read and executed"), vulnerable range **`< 3.2.6`** (first patched
+  `3.2.6`). The installed 1.6.1 is vulnerable. This upgrade to `^4.1.0` resolves
+  the CVE (4.1.x ≥ 3.2.6) **and** the Vite-8 compatibility gap in one move, which
+  is why it's now the highest-priority plan.
 
 ## Why this matters
 
-The project runs **Vite 8.0.x** but pins the test runner to `vitest@^1.0.0`
+**Security (critical):** the pinned `vitest@^1.0.0` (1.6.1 installed) is affected
+by **CVE-2026-47429 / GHSA-5xrq-8626-4rwp** — the Vitest UI server can be coerced
+into reading and executing an arbitrary file. Fixed in **vitest ≥ 3.2.6**; the
+`^4.1.0` target here is well past that. Two open critical Dependabot alerts track
+this (manifests: `package.json` and `packages/plugin/package.json`).
+
+**Compatibility:** the project runs **Vite 8.0.x** but pins the test runner to `vitest@^1.0.0`
 (1.6.1 installed) and `@vitest/coverage-v8@^1.0.0`. **Vitest 1.x targets the Vite
 5 era and does not support Vite 8** — Vite 8 support first arrived in **Vitest
 4.1** (which also switched Vitest to use the project's installed Vite instead of
@@ -188,8 +201,10 @@ suites passing on v4:
 ALL must hold:
 
 - [ ] Both manifests pin `vitest` and `@vitest/coverage-v8` to `^4.1.0`
-- [ ] Installed `vitest` is `>= 4.1.0 < 5` and `@vitest/coverage-v8` is the
-      **exact same version**
+- [ ] Installed `vitest` is `>= 4.1.0 < 5` (and therefore `>= 3.2.6`, clearing
+      CVE-2026-47429) and `@vitest/coverage-v8` is the **exact same version**
+- [ ] After push, the 2 critical `vitest` Dependabot alerts
+      (GHSA-5xrq-8626-4rwp) close on the branch
 - [ ] `grep -n "singleFork" vitest.harness.config.ts` → no match
 - [ ] `cd packages/plugin && bun run test` → 41 pass
 - [ ] `cd packages/plugin && bun run test:unit-extended` → 70 pass

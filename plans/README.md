@@ -23,12 +23,16 @@ sequence (cheapest/safest, highest-leverage first).
 | 006 | Route plugin logging through Vite's Logger | P3 | M | — | TODO |
 | 007 | Validate `maxDirectoryDepth` / `debounce` options (bugs #7/#8) | P2 | S | — | TODO |
 | 008 | Fix husky pre-commit hook (drop per-commit version bump; fast check) | P2 | S | — | TODO |
-| 009 | Upgrade Vitest 1.x → 4.1.x (Vite 8 compatibility) | P2 | M | — | TODO |
+| 009 | Upgrade Vitest 1.x → 4.1.x (Vite 8 compat **+ CRITICAL CVE-2026-47429**) | **P1** | M | — | TODO |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
 ## Dependency notes
 
+- **Do 009 FIRST** (raised to P1 on 2026-06-16): it closes a critical Dependabot
+  CVE (CVE-2026-47429 in `vitest < 3.2.6`) and the Vite-8 compat gap in one go.
+  The table is still numbered 001→009, but the recommended *execution* order now
+  leads with 009.
 - No plan hard-depends on another. Soft suggestion: do **003** (Biome) before
   **006** (logger) so a `noConsole` lint rule can guard the logger refactor going
   forward.
@@ -109,6 +113,18 @@ Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJE
   git was initialized in run 1 and `git rev-parse`/`status` work fine. The entire
   backlog (001–009) is now execution-hardened; there is no further advisory work
   on a frozen repo — next value is execution.
+
+- **2026-06-16 (run after first push):** The advisory backlog was committed
+  (`ed5587e`) and pushed to `origin/feat/input-validation`; source unchanged
+  (only `plans/` + `.gitignore`), so no plan drifted. The push surfaced **2 open
+  CRITICAL Dependabot alerts**, both `vitest` — **CVE-2026-47429 /
+  GHSA-5xrq-8626-4rwp** (Vitest UI server arbitrary file read/exec), vulnerable
+  `< 3.2.6`. The installed 1.6.1 is affected. **Plan 009 already fixes this**
+  (`^4.1.0` ≥ 3.2.6), so rather than add a plan I **raised 009 to P1** and added
+  the security driver to it. 009 is now the clear top priority — it closes a
+  critical CVE and the Vite-8 gap in one upgrade.
+  (The other Dependabot count the push mentioned is the same advisory across the
+  two manifests, not a separate issue.)
 
 ## Architecture edge cases noted, not planned (low value at current scale)
 
