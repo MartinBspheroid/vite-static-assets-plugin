@@ -23,7 +23,7 @@ sequence (cheapest/safest, highest-leverage first).
 | 006 | Route plugin logging through Vite's Logger | P3 | M | — | TODO |
 | 007 | Validate `maxDirectoryDepth` / `debounce` options (bugs #7/#8) | P2 | S | — | TODO |
 | 008 | Fix husky pre-commit hook (drop per-commit version bump; fast check) | P2 | S | — | TODO |
-| 009 | Upgrade Vitest 1.x → 4.1.x (Vite 8 compat **+ CRITICAL CVE-2026-47429**) | **P1** | M | — | TODO |
+| 009 | Upgrade Vitest 1.x → 4.1.x (Vite 8 compat **+ CRITICAL CVE-2026-47429**) | **P1** | M | — | DONE (branch `advisor/009-vitest-4`, commit `12a0aaa`, pending merge) |
 
 Status values: TODO | IN PROGRESS | DONE | BLOCKED (with one-line reason) | REJECTED (with one-line rationale)
 
