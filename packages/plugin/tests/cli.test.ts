@@ -1,4 +1,5 @@
 import { describe, it, expect } from 'vitest';
+import { execa } from 'execa';
 import * as fs from 'node:fs';
 import * as os from 'node:os';
 import * as path from 'node:path';
@@ -159,5 +160,24 @@ export default ({ mode }) => ({
       directory: 'public',
     });
     expect(options.typesOutputFile).toBeUndefined();
+  });
+
+  it('runs when invoked through a symlinked package bin', async () => {
+    const root = makeTempRoot();
+    const binDir = path.join(root, 'node_modules/.bin');
+    fs.mkdirSync(binDir, { recursive: true });
+    const cliPath = path.resolve(__dirname, '../dist/cli.js');
+    const symlinkPath = path.join(binDir, 'vsap');
+    fs.symlinkSync(cliPath, symlinkPath);
+
+    const result = await execa(process.execPath, [symlinkPath, '--help'], {
+      cwd: root,
+      reject: false,
+      all: true,
+    });
+
+    expect(result.exitCode).toBe(0);
+    expect(result.all).toContain('Usage:');
+    expect(result.all).toContain('vsap generate');
   });
 });
