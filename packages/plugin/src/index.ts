@@ -49,6 +49,24 @@ export interface StaticAssetsPluginOptions {
   addLeadingSlash?: boolean;
 }
 
+export interface GenerateStaticAssetsTypesOptions extends StaticAssetsPluginOptions {
+  /**
+   * Root directory to resolve relative options from.
+   * @default process.cwd()
+   */
+  root?: string;
+}
+
+export interface GenerateStaticAssetsTypesResult {
+  files: string[];
+  outputFile: string;
+  changed: boolean;
+}
+
+interface StaticAssetsPluginMetadata {
+  __staticAssetsPluginOptions: StaticAssetsPluginOptions;
+}
+
 /**
  * Asynchronously scan a directory and return all file paths (using Vite's normalizePath).
  *
@@ -286,8 +304,78 @@ function validateAssetReferences(
   return null;
 }
 
+function resolveStaticAssetsPaths(options: StaticAssetsPluginOptions, root: string) {
+  const directory = path.resolve(root, options.directory || 'public');
+  let typesOutputFile: string;
+  if (options.typesOutputFile) {
+    typesOutputFile = path.resolve(root, options.typesOutputFile);
+  } else if (options.outputFile) {
+    typesOutputFile = path.resolve(root, options.outputFile.replace(/\.ts$/, '.d.ts'));
+  } else {
+    typesOutputFile = path.resolve(root, 'src/static-assets.d.ts');
+  }
+  return { directory, typesOutputFile };
+}
+
+async function scanStaticAssets(directory: string, options: StaticAssetsPluginOptions, warn: (msg: string) => void = console.warn) {
+  const ignorePatterns = options.ignore || ['.DS_Store'];
+  const isIgnored = picomatch(ignorePatterns, { dot: true });
+
+  try {
+    const stat = await fs.promises.stat(directory);
+    if (!stat.isDirectory()) {
+      throw new Error(
+        `[vite-plugin-static-assets] 'directory' option "${options.directory || 'public'}" is not a directory.`,
+      );
+    }
+  } catch (e) {
+    const error = e as NodeJS.ErrnoException;
+    if (error.code === 'ENOENT') {
+      warn(`${styleText('yellow', '⚠')} [vite-plugin-static-assets] Source directory "${options.directory || 'public'}" not found. Generating empty types.`);
+      return [];
+    }
+    throw e;
+  }
+
+  return getAllFiles(directory, directory, isIgnored);
+}
+
+async function writeStaticAssetsDts(typesOutputFile: string, files: string[], options: StaticAssetsPluginOptions) {
+  const enableDirectoryTypes = options.enableDirectoryTypes !== false;
+  const dtsCode = generateDtsCode(files, { ...options, enableDirectoryTypes });
+  const outputDir = path.dirname(typesOutputFile);
+  await fs.promises.mkdir(outputDir, { recursive: true });
+
+  const currentContent = await fs.promises.readFile(typesOutputFile, 'utf-8').catch(() => '');
+  if (currentContent !== dtsCode) {
+    await fs.promises.writeFile(typesOutputFile, dtsCode);
+    return true;
+  }
+  return false;
+}
+
+async function generateStaticAssetsTypes(options: GenerateStaticAssetsTypesOptions = {}): Promise<GenerateStaticAssetsTypesResult> {
+  const root = path.resolve(options.root || process.cwd());
+  const { directory, typesOutputFile } = resolveStaticAssetsPaths(options, root);
+  const files = await scanStaticAssets(directory, options);
+  const changed = await writeStaticAssetsDts(typesOutputFile, files, options);
+
+  return {
+    files,
+    outputFile: typesOutputFile,
+    changed,
+  };
+}
+
 // Export pure functions for testing
-export { getAllFiles, extractDirectories, generateVirtualModuleCode, generateDtsCode, validateAssetReferences };
+export {
+  getAllFiles,
+  extractDirectories,
+  generateVirtualModuleCode,
+  generateDtsCode,
+  validateAssetReferences,
+  generateStaticAssetsTypes,
+};
 
 // --- Main Plugin Function ---
 
@@ -325,17 +413,9 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
 
   const resolvePaths = (root: string) => {
     resolvedRoot = root;
-    directory = path.resolve(root, options.directory || 'public');
-    if (options.typesOutputFile) {
-      typesOutputFile = path.resolve(root, options.typesOutputFile);
-    } else if (options.outputFile) {
-      // Derive .d.ts path from old outputFile (deprecation warning already
-      // emitted at factory time above)
-      const oldPath = options.outputFile;
-      typesOutputFile = path.resolve(root, oldPath.replace(/\.ts$/, '.d.ts'));
-    } else {
-      typesOutputFile = path.resolve(root, 'src/static-assets.d.ts');
-    }
+    const resolvedPaths = resolveStaticAssetsPaths(options, root);
+    directory = resolvedPaths.directory;
+    typesOutputFile = resolvedPaths.typesOutputFile;
   };
 
   const ensurePathsResolved = () => {
@@ -366,21 +446,12 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
 
   const writeDtsFile = async (files: string[]) => {
     ensurePathsResolved();
-    const dtsCode = generateDtsCode(files, { ...options, enableDirectoryTypes });
-    const outputDir = path.dirname(typesOutputFile!);
-    await fs.promises.mkdir(outputDir, { recursive: true });
-
-    // Only write if content changed
-    const currentContent = await fs.promises.readFile(typesOutputFile!, 'utf-8').catch(() => '');
-    if (currentContent !== dtsCode) {
-      await fs.promises.writeFile(typesOutputFile!, dtsCode);
-      return true;
-    }
-    return false;
+    return writeStaticAssetsDts(typesOutputFile!, files, { ...options, enableDirectoryTypes });
   };
 
-  return {
+  const plugin: Plugin & StaticAssetsPluginMetadata = {
     name: 'vite-plugin-static-assets',
+    __staticAssetsPluginOptions: options,
 
     configResolved(resolvedConfig) {
       logger = resolvedConfig.logger;
@@ -402,31 +473,7 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
     async buildStart() {
       try {
         ensurePathsResolved();
-        // Stat the source. ENOENT is a soft warning (some workflows scan a
-        // directory that doesn't exist yet); any other access error or a
-        // non-directory target is a hard failure — silently emitting empty
-        // types would hide the misconfiguration.
-        let sourceExists = false;
-        try {
-          const stat = await fs.promises.stat(directory!);
-          if (!stat.isDirectory()) {
-            throw new Error(
-              `[vite-plugin-static-assets] 'directory' option "${options.directory || 'public'}" is not a directory.`,
-            );
-          }
-          sourceExists = true;
-        } catch (e) {
-          const error = e as NodeJS.ErrnoException;
-          if (error.code === 'ENOENT') {
-            warn(`${styleText('yellow', '⚠')} [vite-plugin-static-assets] Source directory "${options.directory || 'public'}" not found. Generating empty types.`);
-            currentFiles = new Set();
-          } else {
-            throw e;
-          }
-        }
-
-        // Scan files
-        const files = sourceExists ? await getAllFiles(directory!, directory!, isIgnored) : [];
+        const files = await scanStaticAssets(directory!, options, warn);
 
         currentFiles = new Set(files);
 
@@ -600,4 +647,6 @@ export default function staticAssetsPlugin(options: StaticAssetsPluginOptions = 
       }
     },
   };
+
+  return plugin;
 }

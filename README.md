@@ -146,14 +146,41 @@ export default defineConfig({
 
 ### TypeScript Setup
 
-Add the plugin's type reference to your `src/vite-env.d.ts`:
+For exact asset-path types, generate the declaration file before typechecking:
+
+```bash
+vsap generate
+```
+
+`vsap generate` loads your Vite config by default and uses the options from `staticAssetsPlugin(...)`. You can override the config values when needed:
+
+```bash
+vsap generate -d public -o src/static-assets.d.ts
+```
+
+If you do not want to commit generated declarations, add the output file to `.gitignore` and run `vsap generate` before standalone typecheck jobs:
+
+```gitignore
+src/static-assets.d.ts
+```
+
+```json
+{
+  "scripts": {
+    "ci:static-assets": "vsap generate",
+    "type-check": "bun run ci:static-assets && tsc --noEmit"
+  }
+}
+```
+
+For loose fallback types before generation, add the plugin's type reference to your `src/vite-env.d.ts`:
 
 ```typescript
 /// <reference types="vite/client" />
 /// <reference types="vite-static-assets-plugin/client" />
 ```
 
-This provides fallback types for IDE resolution. The plugin generates project-specific types (with exact asset path unions) to `src/static-assets.d.ts` on first run.
+The fallback declares `StaticAssetPath` as `string`, so it resolves `virtual:static-assets` but does not provide typo checking or autocomplete for known assets. Do not use the fallback reference in the same TypeScript program as the generated `static-assets.d.ts`.
 
 ---
 
@@ -249,11 +276,31 @@ Works with **any** frontend framework that uses Vite: React, Vue, Svelte, Angula
 
 ---
 
+## CLI
+
+The package exposes a short `vsap` binary for generating precise types without running a Vite dev server or build:
+
+```bash
+vsap generate
+```
+
+By default, the command loads `vite.config.*`, finds `staticAssetsPlugin(...)`, and reuses its `directory`, `typesOutputFile`, `ignore`, `enableDirectoryTypes`, and `maxDirectoryDepth` options.
+
+CLI flags override config values:
+
+```bash
+vsap generate -c vite.config.ts -d public -o src/static-assets.d.ts
+```
+
+Use `--mode <mode>` for mode-specific Vite configs. Use `--no-config` to skip Vite config loading and rely only on CLI flags/defaults.
+
+---
+
 ## How It Works
 
 1. **Scans** the specified directory recursively, ignoring patterns.
 2. **Serves** a virtual module (`virtual:static-assets`) with the asset set and `staticAssets()` function, using `import.meta.env.BASE_URL` for correct base path handling.
-3. **Generates** a `.d.ts` file with `StaticAssetPath`, `StaticAssetDirectory`, and `FilesInFolder<Dir>` types.
+3. **Generates** a `.d.ts` file with `StaticAssetPath`, `StaticAssetDirectory`, and `FilesInFolder<Dir>` types during Vite runs or via `vsap generate`.
 4. **Watches** the directory in development mode (via Vite's built-in watcher), regenerating on changes.
 5. **Validates** `staticAssets()` calls during build.
 6. **Throws errors** with detailed info if a referenced asset is missing.
@@ -272,8 +319,9 @@ Works with **any** frontend framework that uses Vite: React, Vue, Svelte, Angula
 
 ## TypeScript Integration
 
-- Add `/// <reference types="vite-static-assets-plugin/client" />` to your `vite-env.d.ts` for baseline type resolution.
-- The plugin generates precise union types to `src/static-assets.d.ts` on every run.
+- Run `vsap generate` before standalone typecheck jobs if the generated `.d.ts` is gitignored.
+- The plugin also generates precise union types to `src/static-assets.d.ts` during Vite runs.
+- Use `/// <reference types="vite-static-assets-plugin/client" />` only as a loose fallback when you are not using the generated `.d.ts`.
 - Enjoy **auto-completion**, **type checking**, and **refactoring support** for your static assets.
 
 ---

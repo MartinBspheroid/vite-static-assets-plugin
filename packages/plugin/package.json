@@ -1,11 +1,15 @@
 {
   "name": "vite-static-assets-plugin",
   "type": "module",
-  "version": "3.0.0",
+  "version": "3.1.0",
   "description": "Typesafe static assets with Vite",
   "main": "dist/index.js",
   "module": "dist/index.js",
   "types": "dist/index.d.ts",
+  "bin": {
+    "vsap": "./dist/cli.js",
+    "vite-static-assets-plugin": "./dist/cli.js"
+  },
   "scripts": {
     "build": "tsc ",
     "build:watch": "tsc --watch",
