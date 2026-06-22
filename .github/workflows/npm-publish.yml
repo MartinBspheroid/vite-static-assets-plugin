@@ -5,6 +5,10 @@ on:
     tags:
       - 'v*.*.*'
 
+permissions:
+  contents: read
+  id-token: write
+
 jobs:
   publish:
     runs-on: ubuntu-latest
@@ -58,6 +62,4 @@ jobs:
         run: cp LICENSE packages/plugin/LICENSE
 
       - name: Publish Package
-        env:
-          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
-        run: cd packages/plugin && bun run npm publish
+        run: cd packages/plugin && npm publish
